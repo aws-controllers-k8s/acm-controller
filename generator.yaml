@@ -1,2 +1,33 @@
 ignore:
-  resource_names:
+  field_paths:
+    - "RequestCertificateInput.IdempotencyToken"
+operations:
+  RequestCertificate:
+    resource_name: Certificate
+    operation_type: CREATE
+    override_values:
+      # NOTE(jaypipes): We only support DNS-based validation, because
+      # certificate renewal is not really automatable when email verification
+      # is used.
+      #
+      # See discussion here:
+      # https://docs.aws.amazon.com/acm/latest/userguide/email-validation.html
+      ValidationMethod: DNS
+  # NOTE(jaypipes): There is a GetCertificate API call, but that returns the
+  # actual cert bytes, not the attributes of the certificate request
+  DescribeCertificate:
+    resource_name: Certificate
+    operation_type: READ_ONE
+  UpdateCertificateOptions:
+    resource_name: Certificate
+    operation_type: UPDATE
+resources:
+  Certificate:
+    hooks:
+      sdk_create_pre_build_request:
+        template_path: hooks/certificate/sdk_create_pre_build_request.go.tpl
+      sdk_create_post_set_output:
+        template_path: hooks/certificate/sdk_create_post_set_output.go.tpl
+    fields:
+      KeyAlgorithm:
+        late_initialize: {}

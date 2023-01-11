@@ -15,16 +15,16 @@
 
 package v1alpha1
 
-type CertificateStatus string
+type CertificateStatus_SDK string
 
 const (
-	CertificateStatus_PENDING_VALIDATION   CertificateStatus = "PENDING_VALIDATION"
-	CertificateStatus_ISSUED               CertificateStatus = "ISSUED"
-	CertificateStatus_INACTIVE             CertificateStatus = "INACTIVE"
-	CertificateStatus_EXPIRED              CertificateStatus = "EXPIRED"
-	CertificateStatus_VALIDATION_TIMED_OUT CertificateStatus = "VALIDATION_TIMED_OUT"
-	CertificateStatus_REVOKED              CertificateStatus = "REVOKED"
-	CertificateStatus_FAILED               CertificateStatus = "FAILED"
+	CertificateStatus_SDK_PENDING_VALIDATION   CertificateStatus_SDK = "PENDING_VALIDATION"
+	CertificateStatus_SDK_ISSUED               CertificateStatus_SDK = "ISSUED"
+	CertificateStatus_SDK_INACTIVE             CertificateStatus_SDK = "INACTIVE"
+	CertificateStatus_SDK_EXPIRED              CertificateStatus_SDK = "EXPIRED"
+	CertificateStatus_SDK_VALIDATION_TIMED_OUT CertificateStatus_SDK = "VALIDATION_TIMED_OUT"
+	CertificateStatus_SDK_REVOKED              CertificateStatus_SDK = "REVOKED"
+	CertificateStatus_SDK_FAILED               CertificateStatus_SDK = "FAILED"
 )
 
 type CertificateTransparencyLoggingPreference string
