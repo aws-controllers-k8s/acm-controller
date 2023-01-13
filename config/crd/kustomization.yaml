@@ -3,3 +3,4 @@ kind: Kustomization
 bases:
   - common
 resources:
+  - bases/acm.services.k8s.aws_certificates.yaml

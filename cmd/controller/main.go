@@ -34,6 +34,8 @@ import (
 	svctypes "github.com/aws-controllers-k8s/acm-controller/apis/v1alpha1"
 	svcresource "github.com/aws-controllers-k8s/acm-controller/pkg/resource"
 
+	_ "github.com/aws-controllers-k8s/acm-controller/pkg/resource/certificate"
+
 	"github.com/aws-controllers-k8s/acm-controller/pkg/version"
 )
 
