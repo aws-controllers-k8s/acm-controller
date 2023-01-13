@@ -1,0 +1,18 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "acm:DescribeCertificate",
+                "acm:RequestCertificate",
+                "acm:UpdateCertificateOptions",
+                "acm:DeleteCertificate",
+                "acm:AddTagsToCertificate",
+                "acm:RemoveTagsFromCertificate",
+                "acm:ListTagsForCertificate"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

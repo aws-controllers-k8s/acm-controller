@@ -82,13 +82,6 @@ func newResourceDelta(
 	if !reflect.DeepEqual(a.ko.Spec.Tags, b.ko.Spec.Tags) {
 		delta.Add("Spec.Tags", a.ko.Spec.Tags, b.ko.Spec.Tags)
 	}
-	if ackcompare.HasNilDifference(a.ko.Spec.ValidationMethod, b.ko.Spec.ValidationMethod) {
-		delta.Add("Spec.ValidationMethod", a.ko.Spec.ValidationMethod, b.ko.Spec.ValidationMethod)
-	} else if a.ko.Spec.ValidationMethod != nil && b.ko.Spec.ValidationMethod != nil {
-		if *a.ko.Spec.ValidationMethod != *b.ko.Spec.ValidationMethod {
-			delta.Add("Spec.ValidationMethod", a.ko.Spec.ValidationMethod, b.ko.Spec.ValidationMethod)
-		}
-	}
 
 	return delta
 }

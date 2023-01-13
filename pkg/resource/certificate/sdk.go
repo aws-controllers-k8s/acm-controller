@@ -99,6 +99,11 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Spec.CertificateAuthorityARN = nil
 	}
+	if resp.Certificate.CreatedAt != nil {
+		ko.Status.CreatedAt = &metav1.Time{*resp.Certificate.CreatedAt}
+	} else {
+		ko.Status.CreatedAt = nil
+	}
 	if resp.Certificate.DomainName != nil {
 		ko.Spec.DomainName = resp.Certificate.DomainName
 	} else {
@@ -120,10 +125,80 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Spec.DomainValidationOptions = nil
 	}
+	if resp.Certificate.ExtendedKeyUsages != nil {
+		f5 := []*svcapitypes.ExtendedKeyUsage{}
+		for _, f5iter := range resp.Certificate.ExtendedKeyUsages {
+			f5elem := &svcapitypes.ExtendedKeyUsage{}
+			if f5iter.Name != nil {
+				f5elem.Name = f5iter.Name
+			}
+			if f5iter.OID != nil {
+				f5elem.OID = f5iter.OID
+			}
+			f5 = append(f5, f5elem)
+		}
+		ko.Status.ExtendedKeyUsages = f5
+	} else {
+		ko.Status.ExtendedKeyUsages = nil
+	}
+	if resp.Certificate.FailureReason != nil {
+		ko.Status.FailureReason = resp.Certificate.FailureReason
+	} else {
+		ko.Status.FailureReason = nil
+	}
+	if resp.Certificate.ImportedAt != nil {
+		ko.Status.ImportedAt = &metav1.Time{*resp.Certificate.ImportedAt}
+	} else {
+		ko.Status.ImportedAt = nil
+	}
+	if resp.Certificate.InUseBy != nil {
+		f8 := []*string{}
+		for _, f8iter := range resp.Certificate.InUseBy {
+			var f8elem string
+			f8elem = *f8iter
+			f8 = append(f8, &f8elem)
+		}
+		ko.Status.InUseBy = f8
+	} else {
+		ko.Status.InUseBy = nil
+	}
+	if resp.Certificate.IssuedAt != nil {
+		ko.Status.IssuedAt = &metav1.Time{*resp.Certificate.IssuedAt}
+	} else {
+		ko.Status.IssuedAt = nil
+	}
+	if resp.Certificate.Issuer != nil {
+		ko.Status.Issuer = resp.Certificate.Issuer
+	} else {
+		ko.Status.Issuer = nil
+	}
 	if resp.Certificate.KeyAlgorithm != nil {
 		ko.Spec.KeyAlgorithm = resp.Certificate.KeyAlgorithm
 	} else {
 		ko.Spec.KeyAlgorithm = nil
+	}
+	if resp.Certificate.KeyUsages != nil {
+		f12 := []*svcapitypes.KeyUsage{}
+		for _, f12iter := range resp.Certificate.KeyUsages {
+			f12elem := &svcapitypes.KeyUsage{}
+			if f12iter.Name != nil {
+				f12elem.Name = f12iter.Name
+			}
+			f12 = append(f12, f12elem)
+		}
+		ko.Status.KeyUsages = f12
+	} else {
+		ko.Status.KeyUsages = nil
+	}
+	if resp.Certificate.NotAfter != nil {
+		ko.Status.NotAfter = &metav1.Time{*resp.Certificate.NotAfter}
+	} else {
+		ko.Status.NotAfter = nil
+	}
+	if resp.Certificate.NotBefore != nil {
+		ko.Status.NotBefore = &metav1.Time{*resp.Certificate.NotBefore}
+	} else {
+		ko.Status.NotBefore = nil
 	}
 	if resp.Certificate.Options != nil {
 		f15 := &svcapitypes.CertificateOptions{}
@@ -133,6 +208,98 @@ func (rm *resourceManager) sdkFind(
 		ko.Spec.Options = f15
 	} else {
 		ko.Spec.Options = nil
+	}
+	if resp.Certificate.RenewalEligibility != nil {
+		ko.Status.RenewalEligibility = resp.Certificate.RenewalEligibility
+	} else {
+		ko.Status.RenewalEligibility = nil
+	}
+	if resp.Certificate.RenewalSummary != nil {
+		f17 := &svcapitypes.RenewalSummary{}
+		if resp.Certificate.RenewalSummary.DomainValidationOptions != nil {
+			f17f0 := []*svcapitypes.DomainValidation{}
+			for _, f17f0iter := range resp.Certificate.RenewalSummary.DomainValidationOptions {
+				f17f0elem := &svcapitypes.DomainValidation{}
+				if f17f0iter.DomainName != nil {
+					f17f0elem.DomainName = f17f0iter.DomainName
+				}
+				if f17f0iter.ResourceRecord != nil {
+					f17f0elemf1 := &svcapitypes.ResourceRecord{}
+					if f17f0iter.ResourceRecord.Name != nil {
+						f17f0elemf1.Name = f17f0iter.ResourceRecord.Name
+					}
+					if f17f0iter.ResourceRecord.Type != nil {
+						f17f0elemf1.Type = f17f0iter.ResourceRecord.Type
+					}
+					if f17f0iter.ResourceRecord.Value != nil {
+						f17f0elemf1.Value = f17f0iter.ResourceRecord.Value
+					}
+					f17f0elem.ResourceRecord = f17f0elemf1
+				}
+				if f17f0iter.ValidationDomain != nil {
+					f17f0elem.ValidationDomain = f17f0iter.ValidationDomain
+				}
+				if f17f0iter.ValidationEmails != nil {
+					f17f0elemf3 := []*string{}
+					for _, f17f0elemf3iter := range f17f0iter.ValidationEmails {
+						var f17f0elemf3elem string
+						f17f0elemf3elem = *f17f0elemf3iter
+						f17f0elemf3 = append(f17f0elemf3, &f17f0elemf3elem)
+					}
+					f17f0elem.ValidationEmails = f17f0elemf3
+				}
+				if f17f0iter.ValidationMethod != nil {
+					f17f0elem.ValidationMethod = f17f0iter.ValidationMethod
+				}
+				if f17f0iter.ValidationStatus != nil {
+					f17f0elem.ValidationStatus = f17f0iter.ValidationStatus
+				}
+				f17f0 = append(f17f0, f17f0elem)
+			}
+			f17.DomainValidationOptions = f17f0
+		}
+		if resp.Certificate.RenewalSummary.RenewalStatus != nil {
+			f17.RenewalStatus = resp.Certificate.RenewalSummary.RenewalStatus
+		}
+		if resp.Certificate.RenewalSummary.RenewalStatusReason != nil {
+			f17.RenewalStatusReason = resp.Certificate.RenewalSummary.RenewalStatusReason
+		}
+		if resp.Certificate.RenewalSummary.UpdatedAt != nil {
+			f17.UpdatedAt = &metav1.Time{*resp.Certificate.RenewalSummary.UpdatedAt}
+		}
+		ko.Status.RenewalSummary = f17
+	} else {
+		ko.Status.RenewalSummary = nil
+	}
+	if resp.Certificate.RevocationReason != nil {
+		ko.Status.RevocationReason = resp.Certificate.RevocationReason
+	} else {
+		ko.Status.RevocationReason = nil
+	}
+	if resp.Certificate.RevokedAt != nil {
+		ko.Status.RevokedAt = &metav1.Time{*resp.Certificate.RevokedAt}
+	} else {
+		ko.Status.RevokedAt = nil
+	}
+	if resp.Certificate.Serial != nil {
+		ko.Status.Serial = resp.Certificate.Serial
+	} else {
+		ko.Status.Serial = nil
+	}
+	if resp.Certificate.SignatureAlgorithm != nil {
+		ko.Status.SignatureAlgorithm = resp.Certificate.SignatureAlgorithm
+	} else {
+		ko.Status.SignatureAlgorithm = nil
+	}
+	if resp.Certificate.Status != nil {
+		ko.Status.Status = resp.Certificate.Status
+	} else {
+		ko.Status.Status = nil
+	}
+	if resp.Certificate.Subject != nil {
+		ko.Status.Subject = resp.Certificate.Subject
+	} else {
+		ko.Status.Subject = nil
 	}
 	if resp.Certificate.SubjectAlternativeNames != nil {
 		f24 := []*string{}
@@ -144,6 +311,11 @@ func (rm *resourceManager) sdkFind(
 		ko.Spec.SubjectAlternativeNames = f24
 	} else {
 		ko.Spec.SubjectAlternativeNames = nil
+	}
+	if resp.Certificate.Type != nil {
+		ko.Status.Type = resp.Certificate.Type
+	} else {
+		ko.Status.Type = nil
 	}
 
 	rm.setStatusDefaults(ko)
@@ -221,11 +393,6 @@ func (rm *resourceManager) sdkCreate(
 	}
 
 	rm.setStatusDefaults(ko)
-	// See note on https://docs.aws.amazon.com/acm/latest/APIReference/API_RequestCertificate.html
-	// about DescribeCertificate not being ready to call for several seconds
-	// after a successful RequestCertificate API call...
-	waitAfterSuccessfulCreate()
-
 	return &resource{ko}, nil
 }
 
@@ -290,7 +457,6 @@ func (rm *resourceManager) newCreateRequestPayload(
 		}
 		res.SetTags(f6)
 	}
-	res.SetValidationMethod("DNS")
 
 	return res, nil
 }
@@ -472,8 +638,13 @@ func (rm *resourceManager) updateConditions(
 			recoverableCondition.Message = nil
 		}
 	}
-	// Required to avoid the "declared but not used" error in the default case
-	_ = syncCondition
+	if syncCondition == nil && onSuccess {
+		syncCondition = &ackv1alpha1.Condition{
+			Type:   ackv1alpha1.ConditionTypeResourceSynced,
+			Status: corev1.ConditionTrue,
+		}
+		ko.Status.Conditions = append(ko.Status.Conditions, syncCondition)
+	}
 	if terminalCondition != nil || recoverableCondition != nil || syncCondition != nil {
 		return &resource{ko}, true // updated
 	}
@@ -484,6 +655,21 @@ func (rm *resourceManager) updateConditions(
 // and if the exception indicates that it is a Terminal exception
 // 'Terminal' exception are specified in generator configuration
 func (rm *resourceManager) terminalAWSError(err error) bool {
-	// No terminal_errors specified for this resource in generator config
-	return false
+	if err == nil {
+		return false
+	}
+	awsErr, ok := ackerr.AWSError(err)
+	if !ok {
+		return false
+	}
+	switch awsErr.Code() {
+	case "InvalidParameter",
+		"InvalidDomainValidationOptionsException",
+		"InvalidTagException",
+		"TagPolicyException",
+		"TooManyTagsException":
+		return true
+	default:
+		return false
+	}
 }

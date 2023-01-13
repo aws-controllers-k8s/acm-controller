@@ -1,6 +1,7 @@
 ignore:
   field_paths:
     - "RequestCertificateInput.IdempotencyToken"
+    - "RequestCertificateInput.ValidationMethod"
 operations:
   RequestCertificate:
     resource_name: Certificate
@@ -26,8 +27,121 @@ resources:
     hooks:
       sdk_create_pre_build_request:
         template_path: hooks/certificate/sdk_create_pre_build_request.go.tpl
-      sdk_create_post_set_output:
-        template_path: hooks/certificate/sdk_create_post_set_output.go.tpl
+    exceptions:
+      terminal_codes:
+        - InvalidParameter
+        - InvalidDomainValidationOptionsException 
+        - InvalidTagException
+        - TagPolicyException
+        - TooManyTagsException 
+    reconcile:
+      requeue_on_success_seconds: 60
     fields:
+      DomainValidationOptions:
+        late_initialize: {}
+      Options:
+        late_initialize: {}
+      SubjectAlternativeNames:
+        late_initialize: {}
       KeyAlgorithm:
         late_initialize: {}
+      # NOTE(jaypipes): The Create operation (RequestCertificate) has a
+      # response with only a single field (certificateArn). All of the status
+      # fields for the certificate are in the ReadOne operation
+      # (DescribeCertificate) response, so we need to tell the code-generator
+      # about all of those fields manually here...
+      CreatedAt:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.CreatedAt
+      ExtendedKeyUsages:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.ExtendedKeyUsages
+      FailureReason:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.FailureReason
+      ImportedAt:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.ImportedAt
+      InUseBy:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.InUseBy
+      IssuedAt:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.IssuedAt
+      Issuer:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.Issuer
+      KeyUsages:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.KeyUsages
+      NotAfter:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.NotAfter
+      NotBefore:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.NotBefore
+      RenewalEligibility:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.RenewalEligibility
+      RenewalSummary:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.RenewalSummary
+      RevocationReason:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.RevocationReason
+      RevokedAt:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.RevokedAt
+      Serial:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.Serial
+      SignatureAlgorithm:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.SignatureAlgorithm
+      Status:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.Status
+      Subject:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.Subject
+      Type:
+        is_read_only: true
+        from:
+          operation: DescribeCertificate
+          path: Certificate.Type
