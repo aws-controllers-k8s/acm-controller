@@ -91,11 +91,6 @@ type CertificateSpec struct {
 	SubjectAlternativeNames []*string `json:"subjectAlternativeNames,omitempty"`
 	// One or more resource tags to associate with the certificate.
 	Tags []*Tag `json:"tags,omitempty"`
-	// The method you want to use if you are requesting a public certificate to
-	// validate that you own or control domain. You can validate with DNS (https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-validate-dns.html)
-	// or validate with email (https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-validate-email.html).
-	// We recommend that you use DNS validation.
-	ValidationMethod *string `json:"validationMethod,omitempty"`
 }
 
 // CertificateStatus defines the observed state of Certificate
@@ -111,6 +106,96 @@ type CertificateStatus struct {
 	// resource
 	// +kubebuilder:validation:Optional
 	Conditions []*ackv1alpha1.Condition `json:"conditions"`
+	// The time at which the certificate was requested.
+	// +kubebuilder:validation:Optional
+	CreatedAt *metav1.Time `json:"createdAt,omitempty"`
+	// Contains a list of Extended Key Usage X.509 v3 extension objects. Each object
+	// specifies a purpose for which the certificate public key can be used and
+	// consists of a name and an object identifier (OID).
+	// +kubebuilder:validation:Optional
+	ExtendedKeyUsages []*ExtendedKeyUsage `json:"extendedKeyUsages,omitempty"`
+	// The reason the certificate request failed. This value exists only when the
+	// certificate status is FAILED. For more information, see Certificate Request
+	// Failed (https://docs.aws.amazon.com/acm/latest/userguide/troubleshooting.html#troubleshooting-failed)
+	// in the Certificate Manager User Guide.
+	// +kubebuilder:validation:Optional
+	FailureReason *string `json:"failureReason,omitempty"`
+	// The date and time when the certificate was imported. This value exists only
+	// when the certificate type is IMPORTED.
+	// +kubebuilder:validation:Optional
+	ImportedAt *metav1.Time `json:"importedAt,omitempty"`
+	// A list of ARNs for the Amazon Web Services resources that are using the certificate.
+	// A certificate can be used by multiple Amazon Web Services resources.
+	// +kubebuilder:validation:Optional
+	InUseBy []*string `json:"inUseBy,omitempty"`
+	// The time at which the certificate was issued. This value exists only when
+	// the certificate type is AMAZON_ISSUED.
+	// +kubebuilder:validation:Optional
+	IssuedAt *metav1.Time `json:"issuedAt,omitempty"`
+	// The name of the certificate authority that issued and signed the certificate.
+	// +kubebuilder:validation:Optional
+	Issuer *string `json:"issuer,omitempty"`
+	// A list of Key Usage X.509 v3 extension objects. Each object is a string value
+	// that identifies the purpose of the public key contained in the certificate.
+	// Possible extension values include DIGITAL_SIGNATURE, KEY_ENCHIPHERMENT, NON_REPUDIATION,
+	// and more.
+	// +kubebuilder:validation:Optional
+	KeyUsages []*KeyUsage `json:"keyUsages,omitempty"`
+	// The time after which the certificate is not valid.
+	// +kubebuilder:validation:Optional
+	NotAfter *metav1.Time `json:"notAfter,omitempty"`
+	// The time before which the certificate is not valid.
+	// +kubebuilder:validation:Optional
+	NotBefore *metav1.Time `json:"notBefore,omitempty"`
+	// Specifies whether the certificate is eligible for renewal. At this time,
+	// only exported private certificates can be renewed with the RenewCertificate
+	// command.
+	// +kubebuilder:validation:Optional
+	RenewalEligibility *string `json:"renewalEligibility,omitempty"`
+	// Contains information about the status of ACM's managed renewal (https://docs.aws.amazon.com/acm/latest/userguide/acm-renewal.html)
+	// for the certificate. This field exists only when the certificate type is
+	// AMAZON_ISSUED.
+	// +kubebuilder:validation:Optional
+	RenewalSummary *RenewalSummary `json:"renewalSummary,omitempty"`
+	// The reason the certificate was revoked. This value exists only when the certificate
+	// status is REVOKED.
+	// +kubebuilder:validation:Optional
+	RevocationReason *string `json:"revocationReason,omitempty"`
+	// The time at which the certificate was revoked. This value exists only when
+	// the certificate status is REVOKED.
+	// +kubebuilder:validation:Optional
+	RevokedAt *metav1.Time `json:"revokedAt,omitempty"`
+	// The serial number of the certificate.
+	// +kubebuilder:validation:Optional
+	Serial *string `json:"serial,omitempty"`
+	// The algorithm that was used to sign the certificate.
+	// +kubebuilder:validation:Optional
+	SignatureAlgorithm *string `json:"signatureAlgorithm,omitempty"`
+	// The status of the certificate.
+	//
+	// A certificate enters status PENDING_VALIDATION upon being requested, unless
+	// it fails for any of the reasons given in the troubleshooting topic Certificate
+	// request fails (https://docs.aws.amazon.com/acm/latest/userguide/troubleshooting-failed.html).
+	// ACM makes repeated attempts to validate a certificate for 72 hours and then
+	// times out. If a certificate shows status FAILED or VALIDATION_TIMED_OUT,
+	// delete the request, correct the issue with DNS validation (https://docs.aws.amazon.com/acm/latest/userguide/dns-validation.html)
+	// or Email validation (https://docs.aws.amazon.com/acm/latest/userguide/email-validation.html),
+	// and try again. If validation succeeds, the certificate enters status ISSUED.
+	// +kubebuilder:validation:Optional
+	Status *string `json:"status,omitempty"`
+	// The name of the entity that is associated with the public key contained in
+	// the certificate.
+	// +kubebuilder:validation:Optional
+	Subject *string `json:"subject,omitempty"`
+	// The source of the certificate. For certificates provided by ACM, this value
+	// is AMAZON_ISSUED. For certificates that you imported with ImportCertificate,
+	// this value is IMPORTED. ACM does not provide managed renewal (https://docs.aws.amazon.com/acm/latest/userguide/acm-renewal.html)
+	// for imported certificates. For more information about the differences between
+	// certificates that you import and those that ACM provides, see Importing Certificates
+	// (https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html)
+	// in the Certificate Manager User Guide.
+	// +kubebuilder:validation:Optional
+	Type *string `json:"type_,omitempty"`
 }
 
 // Certificate is the Schema for the Certificates API

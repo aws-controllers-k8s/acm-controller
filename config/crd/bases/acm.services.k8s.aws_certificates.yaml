@@ -129,13 +129,6 @@ spec:
                       type: string
                   type: object
                 type: array
-              validationMethod:
-                description: The method you want to use if you are requesting a public
-                  certificate to validate that you own or control domain. You can
-                  validate with DNS (https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-validate-dns.html)
-                  or validate with email (https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-validate-email.html).
-                  We recommend that you use DNS validation.
-                type: string
             required:
             - domainName
             type: object
@@ -203,6 +196,166 @@ spec:
                   - type
                   type: object
                 type: array
+              createdAt:
+                description: The time at which the certificate was requested.
+                format: date-time
+                type: string
+              extendedKeyUsages:
+                description: Contains a list of Extended Key Usage X.509 v3 extension
+                  objects. Each object specifies a purpose for which the certificate
+                  public key can be used and consists of a name and an object identifier
+                  (OID).
+                items:
+                  description: The Extended Key Usage X.509 v3 extension defines one
+                    or more purposes for which the public key can be used. This is
+                    in addition to or in place of the basic purposes specified by
+                    the Key Usage extension.
+                  properties:
+                    name:
+                      type: string
+                    oid:
+                      type: string
+                  type: object
+                type: array
+              failureReason:
+                description: The reason the certificate request failed. This value
+                  exists only when the certificate status is FAILED. For more information,
+                  see Certificate Request Failed (https://docs.aws.amazon.com/acm/latest/userguide/troubleshooting.html#troubleshooting-failed)
+                  in the Certificate Manager User Guide.
+                type: string
+              importedAt:
+                description: The date and time when the certificate was imported.
+                  This value exists only when the certificate type is IMPORTED.
+                format: date-time
+                type: string
+              inUseBy:
+                description: A list of ARNs for the Amazon Web Services resources
+                  that are using the certificate. A certificate can be used by multiple
+                  Amazon Web Services resources.
+                items:
+                  type: string
+                type: array
+              issuedAt:
+                description: The time at which the certificate was issued. This value
+                  exists only when the certificate type is AMAZON_ISSUED.
+                format: date-time
+                type: string
+              issuer:
+                description: The name of the certificate authority that issued and
+                  signed the certificate.
+                type: string
+              keyUsages:
+                description: A list of Key Usage X.509 v3 extension objects. Each
+                  object is a string value that identifies the purpose of the public
+                  key contained in the certificate. Possible extension values include
+                  DIGITAL_SIGNATURE, KEY_ENCHIPHERMENT, NON_REPUDIATION, and more.
+                items:
+                  description: The Key Usage X.509 v3 extension defines the purpose
+                    of the public key contained in the certificate.
+                  properties:
+                    name:
+                      type: string
+                  type: object
+                type: array
+              notAfter:
+                description: The time after which the certificate is not valid.
+                format: date-time
+                type: string
+              notBefore:
+                description: The time before which the certificate is not valid.
+                format: date-time
+                type: string
+              renewalEligibility:
+                description: Specifies whether the certificate is eligible for renewal.
+                  At this time, only exported private certificates can be renewed
+                  with the RenewCertificate command.
+                type: string
+              renewalSummary:
+                description: Contains information about the status of ACM's managed
+                  renewal (https://docs.aws.amazon.com/acm/latest/userguide/acm-renewal.html)
+                  for the certificate. This field exists only when the certificate
+                  type is AMAZON_ISSUED.
+                properties:
+                  domainValidationOptions:
+                    items:
+                      description: Contains information about the validation of each
+                        domain name in the certificate.
+                      properties:
+                        domainName:
+                          type: string
+                        resourceRecord:
+                          description: Contains a DNS record value that you can use
+                            to validate ownership or control of a domain. This is
+                            used by the DescribeCertificate action.
+                          properties:
+                            name:
+                              type: string
+                            type_:
+                              type: string
+                            value:
+                              type: string
+                          type: object
+                        validationDomain:
+                          type: string
+                        validationEmails:
+                          items:
+                            type: string
+                          type: array
+                        validationMethod:
+                          type: string
+                        validationStatus:
+                          type: string
+                      type: object
+                    type: array
+                  renewalStatus:
+                    type: string
+                  renewalStatusReason:
+                    type: string
+                  updatedAt:
+                    format: date-time
+                    type: string
+                type: object
+              revocationReason:
+                description: The reason the certificate was revoked. This value exists
+                  only when the certificate status is REVOKED.
+                type: string
+              revokedAt:
+                description: The time at which the certificate was revoked. This value
+                  exists only when the certificate status is REVOKED.
+                format: date-time
+                type: string
+              serial:
+                description: The serial number of the certificate.
+                type: string
+              signatureAlgorithm:
+                description: The algorithm that was used to sign the certificate.
+                type: string
+              status:
+                description: "The status of the certificate. \n A certificate enters
+                  status PENDING_VALIDATION upon being requested, unless it fails
+                  for any of the reasons given in the troubleshooting topic Certificate
+                  request fails (https://docs.aws.amazon.com/acm/latest/userguide/troubleshooting-failed.html).
+                  ACM makes repeated attempts to validate a certificate for 72 hours
+                  and then times out. If a certificate shows status FAILED or VALIDATION_TIMED_OUT,
+                  delete the request, correct the issue with DNS validation (https://docs.aws.amazon.com/acm/latest/userguide/dns-validation.html)
+                  or Email validation (https://docs.aws.amazon.com/acm/latest/userguide/email-validation.html),
+                  and try again. If validation succeeds, the certificate enters status
+                  ISSUED."
+                type: string
+              subject:
+                description: The name of the entity that is associated with the public
+                  key contained in the certificate.
+                type: string
+              type_:
+                description: The source of the certificate. For certificates provided
+                  by ACM, this value is AMAZON_ISSUED. For certificates that you imported
+                  with ImportCertificate, this value is IMPORTED. ACM does not provide
+                  managed renewal (https://docs.aws.amazon.com/acm/latest/userguide/acm-renewal.html)
+                  for imported certificates. For more information about the differences
+                  between certificates that you import and those that ACM provides,
+                  see Importing Certificates (https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html)
+                  in the Certificate Manager User Guide.
+                type: string
             type: object
         type: object
     served: true
