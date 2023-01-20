@@ -7,13 +7,20 @@ annotations:
     in Kubernetes
 displayName: AWS Controllers for Kubernetes - Amazon ACM
 description: |-
-  Manage Amazon ACM resources in AWS from within your Kubernetes cluster.
+  Manage AWS Certificate Manager (ACM) resources in AWS from within your Kubernetes cluster.
 
 
   **About Amazon ACM**
 
 
-  {ADD YOUR DESCRIPTION HERE}
+  AWS Certificate Manager (ACM) handles the complexity of creating, storing, and renewing public and private SSL/TLS X.509 
+  certificates and keys that protect your AWS websites and applications. You can provide certificates for your 
+  [integrated AWS services](https://docs.aws.amazon.com/acm/latest/userguide/acm-services.html) either by issuing them 
+  directly with ACM or by [importing](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html) third-party 
+  certificates into the ACM management system. ACM certificates can secure singular domain names, multiple specific 
+  domain names, wildcard domains, or combinations of these. ACM wildcard certificates can protect an unlimited number of
+  subdomains. You can also [export](https://docs.aws.amazon.com/acm/latest/userguide/export-private.html) ACM certificates
+  signed by AWS Private CA for use anywhere in your internal PKI.
 
 
   **About the AWS Controllers for Kubernetes**
@@ -22,13 +29,11 @@ description: |-
   This controller is a component of the [AWS Controller for Kubernetes](https://github.com/aws/aws-controllers-k8s)
   project. This project is currently in **developer preview**.
 samples:
-- kind: ExampleCustomKind
-  spec: '{}'
-- kind: SecondExampleCustomKind
+- kind: Certificate
   spec: '{}'
 maintainers:
 - name: "acm maintainer team"
   email: "ack-maintainers@amazon.com"
 links:
 - name: Amazon ACM Developer Resources
-  url: https://aws.amazon.com/ACM/developer-resources/
+  url: https://aws.amazon.com/certificate-manager/resources/
