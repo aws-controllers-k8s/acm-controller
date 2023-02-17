@@ -372,6 +372,7 @@ func (rm *resourceManager) sdkCreate(
 	if err != nil {
 		return nil, err
 	}
+	input.SetValidationMethod("DNS")
 
 	var resp *svcsdk.RequestCertificateOutput
 	_ = resp
