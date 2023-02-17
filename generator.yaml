@@ -6,14 +6,6 @@ operations:
   RequestCertificate:
     resource_name: Certificate
     operation_type: CREATE
-    override_values:
-      # NOTE(jaypipes): We only support DNS-based validation, because
-      # certificate renewal is not really automatable when email verification
-      # is used.
-      #
-      # See discussion here:
-      # https://docs.aws.amazon.com/acm/latest/userguide/email-validation.html
-      ValidationMethod: DNS
   # NOTE(jaypipes): There is a GetCertificate API call, but that returns the
   # actual cert bytes, not the attributes of the certificate request
   DescribeCertificate:
@@ -27,6 +19,18 @@ resources:
     hooks:
       sdk_create_pre_build_request:
         template_path: hooks/certificate/sdk_create_pre_build_request.go.tpl
+      sdk_create_post_build_request:
+        # NOTE(jaypipes): We only support DNS-based validation, because
+        # certificate renewal is not really automatable when email verification
+        # is used.
+        #
+        # See discussion here:
+        # https://docs.aws.amazon.com/acm/latest/userguide/email-validation.html
+        #
+        # Unfortunately, because fields in the "ignore" configuration list are
+        # now deleted from the aws-sdk-go private/model/api.Shape object,
+        # setting `override_values` above does not work :(
+        code: input.SetValidationMethod("DNS")
     exceptions:
       terminal_codes:
         - InvalidParameter
