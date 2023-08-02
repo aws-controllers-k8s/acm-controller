@@ -58,6 +58,9 @@
         },
         "priorityClassName": {
           "type": "string"
+        },
+        "hostNetwork": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -198,7 +201,7 @@
     },
     "watchNamespace": {
       "type": "string"
-    },    
+    },
     "resourceTags": {
       "type": "array",
       "items": {
