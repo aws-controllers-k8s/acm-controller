@@ -2,7 +2,7 @@ service:
   full_name: "AWS Certificate Manager"
   short_name: "ACM"
   link: "https://aws.amazon.com/certificate-manager/"
-  documentation: "https://docs.aws.amazon.com/acm/index.html"
+  documentation: "https://docs.aws.amazon.com/acm/"
 api_versions:
   - api_version: v1alpha1
     status: available
