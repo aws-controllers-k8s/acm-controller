@@ -57,8 +57,12 @@ func newResourceDelta(
 			delta.Add("Spec.DomainName", a.ko.Spec.DomainName, b.ko.Spec.DomainName)
 		}
 	}
-	if !reflect.DeepEqual(a.ko.Spec.DomainValidationOptions, b.ko.Spec.DomainValidationOptions) {
+	if len(a.ko.Spec.DomainValidationOptions) != len(b.ko.Spec.DomainValidationOptions) {
 		delta.Add("Spec.DomainValidationOptions", a.ko.Spec.DomainValidationOptions, b.ko.Spec.DomainValidationOptions)
+	} else if len(a.ko.Spec.DomainValidationOptions) > 0 {
+		if !reflect.DeepEqual(a.ko.Spec.DomainValidationOptions, b.ko.Spec.DomainValidationOptions) {
+			delta.Add("Spec.DomainValidationOptions", a.ko.Spec.DomainValidationOptions, b.ko.Spec.DomainValidationOptions)
+		}
 	}
 	if ackcompare.HasNilDifference(a.ko.Spec.KeyAlgorithm, b.ko.Spec.KeyAlgorithm) {
 		delta.Add("Spec.KeyAlgorithm", a.ko.Spec.KeyAlgorithm, b.ko.Spec.KeyAlgorithm)
@@ -78,8 +82,12 @@ func newResourceDelta(
 			}
 		}
 	}
-	if !ackcompare.SliceStringPEqual(a.ko.Spec.SubjectAlternativeNames, b.ko.Spec.SubjectAlternativeNames) {
+	if len(a.ko.Spec.SubjectAlternativeNames) != len(b.ko.Spec.SubjectAlternativeNames) {
 		delta.Add("Spec.SubjectAlternativeNames", a.ko.Spec.SubjectAlternativeNames, b.ko.Spec.SubjectAlternativeNames)
+	} else if len(a.ko.Spec.SubjectAlternativeNames) > 0 {
+		if !ackcompare.SliceStringPEqual(a.ko.Spec.SubjectAlternativeNames, b.ko.Spec.SubjectAlternativeNames) {
+			delta.Add("Spec.SubjectAlternativeNames", a.ko.Spec.SubjectAlternativeNames, b.ko.Spec.SubjectAlternativeNames)
+		}
 	}
 	if !ackcompare.MapStringStringEqual(ToACKTags(a.ko.Spec.Tags), ToACKTags(b.ko.Spec.Tags)) {
 		delta.Add("Spec.Tags", a.ko.Spec.Tags, b.ko.Spec.Tags)
