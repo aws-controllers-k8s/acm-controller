@@ -10,7 +10,6 @@ rules:
   - acm.services.k8s.aws
   resources:
   - certificates
-
   verbs:
   - create
   - delete
