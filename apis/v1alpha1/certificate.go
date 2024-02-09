@@ -109,6 +109,11 @@ type CertificateStatus struct {
 	// The time at which the certificate was requested.
 	// +kubebuilder:validation:Optional
 	CreatedAt *metav1.Time `json:"createdAt,omitempty"`
+	// Contains information about the initial validation of each domain name that
+	// occurs as a result of the RequestCertificate request. This field exists only
+	// when the certificate type is AMAZON_ISSUED.
+	// +kubebuilder:validation:Optional
+	DomainValidations []*DomainValidation `json:"domainValidations,omitempty"`
 	// Contains a list of Extended Key Usage X.509 v3 extension objects. Each object
 	// specifies a purpose for which the certificate public key can be used and
 	// consists of a name and an object identifier (OID).

@@ -364,6 +364,17 @@ func (in *CertificateStatus) DeepCopyInto(out *CertificateStatus) {
 		in, out := &in.CreatedAt, &out.CreatedAt
 		*out = (*in).DeepCopy()
 	}
+	if in.DomainValidations != nil {
+		in, out := &in.DomainValidations, &out.DomainValidations
+		*out = make([]*DomainValidation, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(DomainValidation)
+				(*in).DeepCopyInto(*out)
+			}
+		}
+	}
 	if in.ExtendedKeyUsages != nil {
 		in, out := &in.ExtendedKeyUsages, &out.ExtendedKeyUsages
 		*out = make([]*ExtendedKeyUsage, len(*in))
