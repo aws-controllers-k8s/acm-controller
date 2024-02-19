@@ -118,17 +118,17 @@ def get(certificate_arn):
         return None
 
 
-def get_tags(db_instance_arn):
+def get_tags(certificate_arn):
     """Returns a dict containing the Certificate's tag records from the ACM
     API.
 
     If no such Certificate exists, returns None.
     """
-    c = boto3.client('rds')
+    c = boto3.client('acm')
     try:
-        resp = c.list_tags_for_resource(
-            ResourceName=db_instance_arn,
+        resp = c.list_tags_for_certificate(
+            CertificateArn=certificate_arn,
         )
-        return resp['TagList']
-    except c.exceptions.DBCertificateNotFoundFault:
+        return resp['Tags']
+    except c.exceptions.ResourceNotFoundException:
         return None

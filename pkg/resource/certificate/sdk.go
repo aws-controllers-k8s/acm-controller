@@ -126,6 +126,13 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Status.DomainValidations = nil
 	}
+	ko.Spec.Tags, err = listTags(
+		ctx, rm.sdkapi, rm.metrics,
+		string(*r.ko.Status.ACKResourceMetadata.ARN),
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	if ko.Status.ACKResourceMetadata == nil {
 		ko.Status.ACKResourceMetadata = &ackv1alpha1.ResourceMetadata{}
@@ -515,6 +522,20 @@ func (rm *resourceManager) sdkUpdate(
 	defer func() {
 		exit(err)
 	}()
+	if delta.DifferentAt("Spec.Tags") {
+		err := syncTags(
+			ctx, rm.sdkapi, rm.metrics,
+			string(*desired.ko.Status.ACKResourceMetadata.ARN),
+			desired.ko.Spec.Tags, latest.ko.Spec.Tags,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// If nothing else has changed, we shouldn't send an update.
+	if !delta.DifferentExcept("Spec.Tags") {
+		return desired, nil
+	}
 	input, err := rm.newUpdateRequestPayload(ctx, desired, delta)
 	if err != nil {
 		return nil, err

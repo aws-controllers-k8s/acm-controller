@@ -7,5 +7,5 @@ spec:
   # NOTE(jaypipes): Having an empty certificateAuthorityARN field indicates
   # that this is a public certificate request...
   tags:
-    - key: environment
-      value: dev
+  - key: environment
+    value: dev

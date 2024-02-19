@@ -17,6 +17,8 @@ operations:
 resources:
   Certificate:
     hooks:
+      sdk_update_pre_build_request:
+        template_path: hooks/certificate/sdk_update_pre_build_request.go.tpl
       sdk_create_pre_build_request:
         template_path: hooks/certificate/sdk_create_pre_build_request.go.tpl
       sdk_create_post_build_request:
