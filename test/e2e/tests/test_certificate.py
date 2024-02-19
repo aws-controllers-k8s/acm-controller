@@ -23,6 +23,7 @@ from acktest.resources import random_suffix_name
 from e2e import service_marker, CRD_GROUP, CRD_VERSION, load_resource
 from e2e.replacement_values import REPLACEMENT_VALUES
 from e2e import certificate
+from acktest import tags
 
 RESOURCE_PLURAL = 'certificates'
 
@@ -35,7 +36,6 @@ DELETE_WAIT_AFTER_SECONDS = 30
 
 # Time we wait for the certificate to get to ACK.ResourceSynced=True
 MAX_WAIT_FOR_SYNCED_MINUTES = 1
-
 
 @pytest.fixture
 def certificate_public():
@@ -70,7 +70,7 @@ def certificate_public():
     try:
         _, deleted = k8s.delete_custom_resource(ref, 3, 10)
         assert deleted
-        certificate.wait_until_deleted(certificate_arn)
+        certificate.wait_until_deleted(cr["status"]["ackResourceMetadata"]["arn"])
     except:
         pass
 
@@ -119,8 +119,57 @@ class TestCertificate:
         assert 'status' in cr['status']
         assert cr['status']['status'] == 'FAILED'
 
+        expected_tags = [
+            {
+                "key": "environment",
+                "value": "dev"
+            },
+        ]
+        observed_tags = certificate.get_tags(certificate_arn)
+        tags_dict = tags.to_dict(
+            expected_tags,
+            key_member_name="key",
+            value_member_name="value"
+        )
+        tags.assert_equal_without_ack_tags(
+            expected=tags_dict,
+            actual=observed_tags,
+        )
+
+        new_tags = [
+            {
+                "key": "environment",
+                "value": "dev2"
+            },
+            {
+                "key": "key-a",
+                "value": "value-a"
+            },
+            {
+                "key": "key-b",
+                "value": "value-b"
+            },
+        ]
+        # Update tags
+        updates = {
+            "spec": {
+                "tags": new_tags
+            },
+        }
+        k8s.patch_custom_resource(ref, updates)
+        time.sleep(10)
+
+        observed_tags = certificate.get_tags(certificate_arn)
+        tags_dict = tags.to_dict(
+            new_tags,
+            key_member_name="key",
+            value_member_name="value"
+        )
+        tags.assert_equal_without_ack_tags(
+            expected=tags_dict,
+            actual=observed_tags,
+        )
+
         k8s.delete_custom_resource(ref)
-
         time.sleep(DELETE_WAIT_AFTER_SECONDS)
-
         certificate.wait_until_deleted(certificate_arn)

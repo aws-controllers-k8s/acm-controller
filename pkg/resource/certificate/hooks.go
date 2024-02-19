@@ -16,16 +16,11 @@ package certificate
 import (
 	"errors"
 	"fmt"
-	"time"
+
+	"github.com/aws-controllers-k8s/acm-controller/pkg/tags"
 )
 
 const (
-	// See note on
-	// https://docs.aws.amazon.com/acm/latest/APIReference/API_RequestCertificate.html
-	// about DescribeCertificate not being ready to call for several seconds
-	// after a successful RequestCertificate API call...
-	waitSecondsAfterCreate = 5 * time.Second
-
 	// DNS validation only works for up to 5 chained CNAME records
 	limitDomainValidationOptionsPublic = 5
 )
@@ -63,6 +58,7 @@ func validatePublicValidationOptions(
 	return nil
 }
 
-func waitAfterSuccessfulCreate() {
-	time.Sleep(waitSecondsAfterCreate)
-}
+var (
+	syncTags = tags.SyncTags
+	listTags = tags.ListTags
+)
