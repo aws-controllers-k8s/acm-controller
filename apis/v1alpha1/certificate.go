@@ -22,7 +22,8 @@ import (
 
 // CertificateSpec defines the desired state of Certificate.
 type CertificateSpec struct {
-
+	Certificate    *ackv1alpha1.SecretKeyReference `json:"certificate,omitempty"`
+	CertificateARN *string                         `json:"certificateARN,omitempty"`
 	// The Amazon Resource Name (ARN) of the private certificate authority (CA)
 	// that will be used to issue the certificate. If you do not provide an ARN
 	// and you are trying to request a private certificate, ACM will attempt to
@@ -32,6 +33,7 @@ type CertificateSpec struct {
 	//
 	// arn:aws:acm-pca:region:account:certificate-authority/12345678-1234-1234-1234-123456789012
 	CertificateAuthorityARN *string `json:"certificateAuthorityARN,omitempty"`
+	CertificateChain        []byte  `json:"certificateChain,omitempty"`
 	// Fully qualified domain name (FQDN), such as www.example.com, that you want
 	// to secure with an ACM certificate. Use an asterisk (*) to create a wildcard
 	// certificate that protects several sites in the same domain. For example,
@@ -42,8 +44,7 @@ type CertificateSpec struct {
 	// cannot exceed 64 octets (characters), including periods. To add a longer
 	// domain name, specify it in the Subject Alternative Name field, which supports
 	// names up to 253 octets in length.
-	// +kubebuilder:validation:Required
-	DomainName *string `json:"domainName"`
+	DomainName *string `json:"domainName,omitempty"`
 	// The domain name that you want ACM to use to send you emails so that you can
 	// validate domain ownership.
 	DomainValidationOptions []*DomainValidationOption `json:"domainValidationOptions,omitempty"`
@@ -65,7 +66,8 @@ type CertificateSpec struct {
 	// Certificates that have not been logged typically produce an error message
 	// in a browser. For more information, see Opting Out of Certificate Transparency
 	// Logging (https://docs.aws.amazon.com/acm/latest/userguide/acm-bestpractices.html#best-practices-transparency).
-	Options *CertificateOptions `json:"options,omitempty"`
+	Options    *CertificateOptions             `json:"options,omitempty"`
+	PrivateKey *ackv1alpha1.SecretKeyReference `json:"privateKey,omitempty"`
 	// Additional FQDNs to be included in the Subject Alternative Name extension
 	// of the ACM certificate. For example, add the name www.example.net to a certificate
 	// for which the DomainName field is www.example.com if users can reach your
