@@ -39,6 +39,28 @@ spec:
           spec:
             description: CertificateSpec defines the desired state of Certificate.
             properties:
+              certificate:
+                description: |-
+                  SecretKeyReference combines a k8s corev1.SecretReference with a
+                  specific key within the referred-to Secret
+                properties:
+                  key:
+                    description: Key is the key within the secret
+                    type: string
+                  name:
+                    description: name is unique within a namespace to reference a
+                      secret resource.
+                    type: string
+                  namespace:
+                    description: namespace defines the space within which the secret
+                      name must be unique.
+                    type: string
+                required:
+                - key
+                type: object
+                x-kubernetes-map-type: atomic
+              certificateARN:
+                type: string
               certificateAuthorityARN:
                 description: |-
                   The Amazon Resource Name (ARN) of the private certificate authority (CA)
@@ -49,6 +71,9 @@ spec:
                   user guide. The ARN must have the following form:
 
                   arn:aws:acm-pca:region:account:certificate-authority/12345678-1234-1234-1234-123456789012
+                type: string
+              certificateChain:
+                format: byte
                 type: string
               domainName:
                 description: |-
@@ -104,6 +129,26 @@ spec:
                   certificateTransparencyLoggingPreference:
                     type: string
                 type: object
+              privateKey:
+                description: |-
+                  SecretKeyReference combines a k8s corev1.SecretReference with a
+                  specific key within the referred-to Secret
+                properties:
+                  key:
+                    description: Key is the key within the secret
+                    type: string
+                  name:
+                    description: name is unique within a namespace to reference a
+                      secret resource.
+                    type: string
+                  namespace:
+                    description: namespace defines the space within which the secret
+                      name must be unique.
+                    type: string
+                required:
+                - key
+                type: object
+                x-kubernetes-map-type: atomic
               subjectAlternativeNames:
                 description: |-
                   Additional FQDNs to be included in the Subject Alternative Name extension
@@ -143,8 +188,6 @@ spec:
                       type: string
                   type: object
                 type: array
-            required:
-            - domainName
             type: object
           status:
             description: CertificateStatus defines the observed state of Certificate

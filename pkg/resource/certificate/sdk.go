@@ -405,6 +405,13 @@ func (rm *resourceManager) sdkCreate(
 	defer func() {
 		exit(err)
 	}()
+	created, isImport, err := rm.maybeImportCertificate(ctx, desired)
+	if err != nil {
+		return nil, err
+	}
+	if isImport {
+		return created, nil
+	}
 	if err = validatePublicValidationOptions(desired); err != nil {
 		return nil, ackerr.NewTerminalError(err)
 	}
@@ -516,20 +523,29 @@ func (rm *resourceManager) sdkUpdate(
 	defer func() {
 		exit(err)
 	}()
+	if immutableFieldChanges := rm.getImmutableFieldChanges(delta); len(immutableFieldChanges) > 0 {
+		msg := fmt.Sprintf("Immutable Spec fields have been modified: %s", strings.Join(immutableFieldChanges, ","))
+		return nil, ackerr.NewTerminalError(fmt.Errorf(msg))
+	}
 	if delta.DifferentAt("Spec.Tags") {
-		err := syncTags(
+		if err := syncTags(
 			ctx, rm.sdkapi, rm.metrics,
 			string(*desired.ko.Status.ACKResourceMetadata.ARN),
 			desired.ko.Spec.Tags, latest.ko.Spec.Tags,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, err
 		}
 	}
-	// If nothing else has changed, we shouldn't send an update.
 	if !delta.DifferentExcept("Spec.Tags") {
 		return desired, nil
 	}
+	if latest.ko.Status.Type != nil && *latest.ko.Status.Type == string(svcapitypes.CertificateType_IMPORTED) {
+		if delta.DifferentAt("Spec.Options") {
+			return nil, ackerr.NewTerminalError(errors.New("only tags can be updated for an imported certificate"))
+		}
+		return desired, nil
+	}
+
 	input, err := rm.newUpdateRequestPayload(ctx, desired, delta)
 	if err != nil {
 		return nil, err
@@ -724,9 +740,105 @@ func (rm *resourceManager) terminalAWSError(err error) bool {
 		"InvalidDomainValidationOptionsException",
 		"InvalidTagException",
 		"TagPolicyException",
-		"TooManyTagsException":
+		"TooManyTagsException",
+		"InvalidArnException":
 		return true
 	default:
 		return false
 	}
+}
+
+// getImmutableFieldChanges returns list of immutable fields from the
+func (rm *resourceManager) getImmutableFieldChanges(
+	delta *ackcompare.Delta,
+) []string {
+	var fields []string
+	if delta.DifferentAt("Spec.Certificate") {
+		fields = append(fields, "Certificate")
+	}
+	if delta.DifferentAt("Spec.CertificateArn") {
+		fields = append(fields, "CertificateArn")
+	}
+	if delta.DifferentAt("Spec.CertificateChain") {
+		fields = append(fields, "CertificateChain")
+	}
+	if delta.DifferentAt("Spec.PrivateKey") {
+		fields = append(fields, "PrivateKey")
+	}
+
+	return fields
+}
+
+// newImportCertificateInput returns a ImportCertificateInput object
+// with each field set by the corresponding configuration's fields.
+func (rm *resourceManager) newImportCertificateInput(
+	ctx context.Context,
+	r *resource,
+) (*svcsdk.ImportCertificateInput, error) {
+	input := &importCertificateInput{ImportCertificateInput: &svcsdk.ImportCertificateInput{}}
+	if r.ko.Spec.Certificate != nil {
+		input.SetCertificate(r.ko.Spec.Certificate)
+	}
+	if r.ko.Spec.CertificateARN != nil {
+		input.SetCertificateArn(*r.ko.Spec.CertificateARN)
+	}
+	if r.ko.Spec.CertificateChain != nil {
+		input.SetCertificateChain(r.ko.Spec.CertificateChain)
+	}
+	if r.ko.Spec.PrivateKey != nil {
+		input.SetPrivateKey(r.ko.Spec.PrivateKey)
+	}
+	if r.ko.Spec.Tags != nil {
+		inputf4 := []*svcsdk.Tag{}
+		for _, inputf4iter := range r.ko.Spec.Tags {
+			inputf4elem := &svcsdk.Tag{}
+			if inputf4iter.Key != nil {
+				inputf4elem.SetKey(*inputf4iter.Key)
+			}
+			if inputf4iter.Value != nil {
+				inputf4elem.SetValue(*inputf4iter.Value)
+			}
+			inputf4 = append(inputf4, inputf4elem)
+		}
+		input.SetTags(inputf4)
+	}
+
+	{
+		tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.PrivateKey)
+		if err != nil {
+			return nil, ackrequeue.Needed(err)
+		}
+		if tmpSecret != "" {
+			input.PrivateKey = []byte(tmpSecret)
+		}
+	}
+
+	{
+		tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.Certificate)
+		if err != nil {
+			return nil, ackrequeue.Needed(err)
+		}
+		if tmpSecret != "" {
+			input.Certificate = []byte(tmpSecret)
+		}
+	}
+
+	return input.ImportCertificateInput, nil
+}
+
+// setResourceFromImportCertificateOutput sets a resource ImportCertificateOutput type
+// given the SDK type.
+func (rm *resourceManager) setResourceFromImportCertificateOutput(
+	r *resource,
+	resp *svcsdk.ImportCertificateOutput,
+) {
+
+	if r.ko.Status.ACKResourceMetadata == nil {
+		r.ko.Status.ACKResourceMetadata = &ackv1alpha1.ResourceMetadata{}
+	}
+	if resp.CertificateArn != nil {
+		arn := ackv1alpha1.AWSResourceName(*resp.CertificateArn)
+		r.ko.Status.ACKResourceMetadata.ARN = &arn
+	}
+
 }
