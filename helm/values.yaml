@@ -4,7 +4,7 @@
 
 image:
   repository: public.ecr.aws/aws-controllers-k8s/acm-controller
-  tag: 0.0.16
+  tag: 0.0.17
   pullPolicy: IfNotPresent
   pullSecrets: []
 
