@@ -85,10 +85,8 @@ func (rm *resourceManager) maybeImportCertificate(ctx context.Context, r *resour
 		}
 		return created, true, nil
 	}
-	if certSpec.DomainName != nil {
-		if certSpec.Certificate != nil || certSpec.PrivateKey != nil || len(certSpec.CertificateChain) > 0 {
-			return nil, false, ackerr.NewTerminalError(errors.New("cannot set fields used for importing a certificate when requesting a certificate"))
-		}
+	if certSpec.DomainName != nil && (certSpec.Certificate != nil || certSpec.PrivateKey != nil || certSpec.CertificateChain != nil) {
+		return nil, false, ackerr.NewTerminalError(errors.New("cannot set fields used for importing a certificate when requesting a certificate"))
 	}
 	return nil, false, nil
 }
@@ -128,6 +126,8 @@ type importCertificateInput struct {
 	*svcsdk.ImportCertificateInput
 }
 
-func (c *importCertificateInput) SetPrivateKey(r *ackv1alpha1.SecretKeyReference) {}
+func (c *importCertificateInput) SetPrivateKey(_ *ackv1alpha1.SecretKeyReference) {}
 
-func (c *importCertificateInput) SetCertificate(r *ackv1alpha1.SecretKeyReference) {}
+func (c *importCertificateInput) SetCertificate(_ *ackv1alpha1.SecretKeyReference) {}
+
+func (c *importCertificateInput) SetCertificateChain(_ *ackv1alpha1.SecretKeyReference) {}

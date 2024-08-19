@@ -290,10 +290,15 @@ func (in *CertificateSpec) DeepCopyInto(out *CertificateSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.CertificateAuthorityRef != nil {
+		in, out := &in.CertificateAuthorityRef, &out.CertificateAuthorityRef
+		*out = new(corev1alpha1.AWSResourceReferenceWrapper)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.CertificateChain != nil {
 		in, out := &in.CertificateChain, &out.CertificateChain
-		*out = make([]byte, len(*in))
-		copy(*out, *in)
+		*out = new(corev1alpha1.SecretKeyReference)
+		**out = **in
 	}
 	if in.DomainName != nil {
 		in, out := &in.DomainName, &out.DomainName

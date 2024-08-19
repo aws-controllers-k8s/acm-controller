@@ -759,6 +759,9 @@ func (rm *resourceManager) getImmutableFieldChanges(
 	if delta.DifferentAt("Spec.CertificateArn") {
 		fields = append(fields, "CertificateArn")
 	}
+	if delta.DifferentAt("Spec.CertificateAuthorityARN") {
+		fields = append(fields, "CertificateAuthorityARN")
+	}
 	if delta.DifferentAt("Spec.CertificateChain") {
 		fields = append(fields, "CertificateChain")
 	}
@@ -820,6 +823,16 @@ func (rm *resourceManager) newImportCertificateInput(
 		}
 		if tmpSecret != "" {
 			input.Certificate = []byte(tmpSecret)
+		}
+	}
+
+	{
+		tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.CertificateChain)
+		if err != nil {
+			return nil, ackrequeue.Needed(err)
+		}
+		if tmpSecret != "" {
+			input.CertificateChain = []byte(tmpSecret)
 		}
 	}
 

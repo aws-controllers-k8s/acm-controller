@@ -18,6 +18,7 @@ import time
 import base64
 import pytest
 
+from typing import Dict, Tuple
 from kubernetes import client
 from acktest.k8s import resource as k8s, condition
 from acktest.resources import random_suffix_name
@@ -41,7 +42,7 @@ MAX_WAIT_FOR_SYNCED_MINUTES = 1
 
 
 @pytest.fixture
-def certificate_public(request):
+def certificate_public(request) -> Tuple[k8s.CustomResourceReference, Dict]:
     certificate_name = random_suffix_name("certificate", 20)
     domain_name = "example.com"
 
@@ -79,7 +80,7 @@ def certificate_public(request):
 
 
 @pytest.fixture
-def certificate_import():
+def certificate_import() -> Tuple[k8s.CustomResourceReference, Dict]:
     certificate_name = random_suffix_name("certificate-imported", 30)
     body = client.V1Secret()
     private_key, cert = create_x509_certificate('ACK', 'services.k8s.aws', 'acm.services.k8s.aws')

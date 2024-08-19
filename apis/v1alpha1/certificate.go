@@ -32,8 +32,9 @@ type CertificateSpec struct {
 	// user guide. The ARN must have the following form:
 	//
 	// arn:aws:acm-pca:region:account:certificate-authority/12345678-1234-1234-1234-123456789012
-	CertificateAuthorityARN *string `json:"certificateAuthorityARN,omitempty"`
-	CertificateChain        []byte  `json:"certificateChain,omitempty"`
+	CertificateAuthorityARN *string                                  `json:"certificateAuthorityARN,omitempty"`
+	CertificateAuthorityRef *ackv1alpha1.AWSResourceReferenceWrapper `json:"certificateAuthorityRef,omitempty"`
+	CertificateChain        *ackv1alpha1.SecretKeyReference          `json:"certificateChain,omitempty"`
 	// Fully qualified domain name (FQDN), such as www.example.com, that you want
 	// to secure with an ACM certificate. Use an asterisk (*) to create a wildcard
 	// certificate that protects several sites in the same domain. For example,
