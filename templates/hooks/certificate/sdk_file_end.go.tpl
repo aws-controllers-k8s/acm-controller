@@ -24,15 +24,15 @@ func (rm *resourceManager) new{{ $inputShapeName }}(
 ) (*svcsdk.{{ $inputShapeName }}, error) {
     input := &importCertificateInput{ImportCertificateInput: &svcsdk.ImportCertificateInput{}}
 {{ GoCodeSetSDKForStruct $CRD "" "input" $inputRef "" "r.ko.Spec" 1 }}
-    {{range $fieldName := Each "PrivateKey" "Certificate"}}
+    {{range $fieldName := Each "PrivateKey" "Certificate" "CertificateChain"}}
     {
-    tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.{{$fieldName}})
-    if err != nil {
-        return nil, ackrequeue.Needed(err)
-    }
-    if tmpSecret != "" {
-        input.{{$fieldName}} = []byte(tmpSecret)
-    }
+        tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.{{$fieldName}})
+        if err != nil {
+            return nil, ackrequeue.Needed(err)
+        }
+        if tmpSecret != "" {
+            input.{{$fieldName}} = []byte(tmpSecret)
+        }
     }
     {{end}}
     return input.ImportCertificateInput, nil

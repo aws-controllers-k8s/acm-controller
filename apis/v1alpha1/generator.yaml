@@ -71,6 +71,15 @@ resources:
       CertificateChain:
         type: "bytes"
         is_immutable: true
+        is_secret: true
+        compare:
+          is_ignored: true
+      CertificateAuthorityARN:
+        references:
+          service_name: acmpca
+          resource: CertificateAuthority
+          path: Status.ACKResourceMetadata.ARN
+        is_immutable: true
       KeyAlgorithm:
         late_initialize: {}
       Options:

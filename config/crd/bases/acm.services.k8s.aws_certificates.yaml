@@ -72,9 +72,43 @@ spec:
 
                   arn:aws:acm-pca:region:account:certificate-authority/12345678-1234-1234-1234-123456789012
                 type: string
+              certificateAuthorityRef:
+                description: "AWSResourceReferenceWrapper provides a wrapper around
+                  *AWSResourceReference\ntype to provide more user friendly syntax
+                  for references using 'from' field\nEx:\nAPIIDRef:\n\n\n\tfrom:\n\t
+                  \ name: my-api"
+                properties:
+                  from:
+                    description: |-
+                      AWSResourceReference provides all the values necessary to reference another
+                      k8s resource for finding the identifier(Id/ARN/Name)
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    type: object
+                type: object
               certificateChain:
-                format: byte
-                type: string
+                description: |-
+                  SecretKeyReference combines a k8s corev1.SecretReference with a
+                  specific key within the referred-to Secret
+                properties:
+                  key:
+                    description: Key is the key within the secret
+                    type: string
+                  name:
+                    description: name is unique within a namespace to reference a
+                      secret resource.
+                    type: string
+                  namespace:
+                    description: namespace defines the space within which the secret
+                      name must be unique.
+                    type: string
+                required:
+                - key
+                type: object
+                x-kubernetes-map-type: atomic
               domainName:
                 description: |-
                   Fully qualified domain name (FQDN), such as www.example.com, that you want
