@@ -1,0 +1,18 @@
+apiVersion: acm.services.k8s.aws/v1alpha1
+kind: Certificate
+metadata:
+  name: $CERTIFICATE_NAME
+spec:
+  domainName: $DOMAIN_NAME
+  certificateAuthorityARN: invalid
+  domainValidationOptions:
+    - domainName: $DOMAIN_NAME
+    - domainName: $DOMAIN_NAME
+    - domainName: $DOMAIN_NAME
+    - domainName: $DOMAIN_NAME
+    - domainName: $DOMAIN_NAME
+    - domainName: $DOMAIN_NAME
+    - domainName: $DOMAIN_NAME
+  tags:
+  - key: environment
+    value: dev

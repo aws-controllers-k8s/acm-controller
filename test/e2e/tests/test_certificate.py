@@ -18,7 +18,7 @@ import time
 
 import pytest
 
-from acktest.k8s import resource as k8s
+from acktest.k8s import resource as k8s, condition
 from acktest.resources import random_suffix_name
 from e2e import service_marker, CRD_GROUP, CRD_VERSION, load_resource
 from e2e.replacement_values import REPLACEMENT_VALUES
@@ -38,7 +38,7 @@ DELETE_WAIT_AFTER_SECONDS = 30
 MAX_WAIT_FOR_SYNCED_MINUTES = 1
 
 @pytest.fixture
-def certificate_public():
+def certificate_public(request):
     certificate_name = random_suffix_name("certificate", 20)
     domain_name = "example.com"
 
@@ -47,7 +47,7 @@ def certificate_public():
     replacements['DOMAIN_NAME'] = domain_name
 
     resource_data = load_resource(
-        "certificate_public",
+        request.param,
         additional_replacements=replacements,
     )
 
@@ -78,6 +78,7 @@ def certificate_public():
 @service_marker
 @pytest.mark.canary
 class TestCertificate:
+    @pytest.mark.parametrize('certificate_public', ['certificate_public'], indirect=True)
     def test_crud_public(
             self,
             certificate_public,
@@ -173,3 +174,19 @@ class TestCertificate:
         k8s.delete_custom_resource(ref)
         time.sleep(DELETE_WAIT_AFTER_SECONDS)
         certificate.wait_until_deleted(certificate_arn)
+
+    @pytest.mark.parametrize('certificate_public', ['certificate_public_invalid'], indirect=True)
+    def test_invalid(
+            self,
+            certificate_public,
+    ):
+        (ref, cr) = certificate_public
+        assert 'status' in cr
+
+        cond = k8s.get_resource_condition(ref, condition.CONDITION_TYPE_TERMINAL)
+        assert cond is not None
+        assert cond == {
+            'message': 'Too many domain validation errors',
+            'status': 'True',
+            'type': condition.CONDITION_TYPE_TERMINAL,
+        }
