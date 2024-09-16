@@ -41,8 +41,8 @@ spec:
             properties:
               certificate:
                 description: |-
-                  SecretKeyReference combines a k8s corev1.SecretReference with a
-                  specific key within the referred-to Secret
+                  The Certificate to import into AWS Certificate Manager (ACM) to use with services that are integrated with ACM.
+                  This field is only valid when importing an existing certificate into ACM.
                 properties:
                   key:
                     description: Key is the key within the secret
@@ -60,6 +60,9 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
               certificateARN:
+                description: |-
+                  The Amazon Resource Name (ARN) of an imported certificate to replace. This field is only valid when importing
+                  an existing certificate into ACM.
                 type: string
               certificateAuthorityARN:
                 description: |-
@@ -165,8 +168,8 @@ spec:
                 type: object
               privateKey:
                 description: |-
-                  SecretKeyReference combines a k8s corev1.SecretReference with a
-                  specific key within the referred-to Secret
+                  The private key that matches the public key in the certificate. This field is only valid when importing
+                  an existing certificate into ACM.
                 properties:
                   key:
                     description: Key is the key within the secret
