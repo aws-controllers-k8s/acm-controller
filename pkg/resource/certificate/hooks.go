@@ -14,8 +14,14 @@
 package certificate
 
 import (
+	"context"
 	"errors"
 	"fmt"
+
+	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
+	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
+	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
+	svcsdk "github.com/aws/aws-sdk-go/service/acm"
 
 	"github.com/aws-controllers-k8s/acm-controller/pkg/tags"
 )
@@ -58,7 +64,70 @@ func validatePublicValidationOptions(
 	return nil
 }
 
+// maybeImportCertificate imports a certificate into ACM if Spec.Certificate is set.
+func (rm *resourceManager) maybeImportCertificate(ctx context.Context, r *resource) (*resource, bool, error) {
+	certSpec := r.ko.Spec
+	if certSpec.Certificate != nil {
+		if certSpec.DomainName != nil || len(certSpec.DomainValidationOptions) > 0 || certSpec.KeyAlgorithm != nil ||
+			len(certSpec.SubjectAlternativeNames) > 0 || certSpec.Options != nil {
+			return nil, false, ackerr.NewTerminalError(errors.New("cannot set fields used for requesting a certificate when importing a certificate"))
+		}
+		input, err := rm.newImportCertificateInput(ctx, r)
+		if err != nil {
+			return nil, false, err
+		}
+		if len(input.PrivateKey) == 0 {
+			return nil, false, ackerr.NewTerminalError(errors.New("privateKey is required when importing a certificate"))
+		}
+		created, err := rm.importCertificate(ctx, r, input)
+		if err != nil {
+			return nil, false, err
+		}
+		return created, true, nil
+	}
+	if certSpec.DomainName != nil && (certSpec.Certificate != nil || certSpec.PrivateKey != nil || certSpec.CertificateChain != nil) {
+		return nil, false, ackerr.NewTerminalError(errors.New("cannot set fields used for importing a certificate when requesting a certificate"))
+	}
+	return nil, false, nil
+}
+
 var (
 	syncTags = tags.SyncTags
 	listTags = tags.ListTags
 )
+
+// importCertificate imports a certificate into ACM.
+func (rm *resourceManager) importCertificate(
+	ctx context.Context,
+	desired *resource,
+	input *svcsdk.ImportCertificateInput,
+) (created *resource, err error) {
+	rlog := ackrtlog.FromContext(ctx)
+	exit := rlog.Trace("rm.importCertificate")
+	defer func(err error) { exit(err) }(err)
+
+	resp, respErr := rm.sdkapi.ImportCertificateWithContext(ctx, input)
+	rm.metrics.RecordAPICall("CREATE", "ImportCertificate", respErr)
+	if respErr != nil {
+		return nil, respErr
+	}
+	// Merge in the information we read from the API call above to the copy of
+	// the original Kubernetes object we passed to the function
+	ko := desired.ko.DeepCopy()
+	created = &resource{ko}
+	rm.setResourceFromImportCertificateOutput(created, resp)
+	rm.setStatusDefaults(ko)
+	return created, nil
+}
+
+// importCertificateInput exists as a workaround for a limitation in code-generator.
+// code-generator does not resolve secret key references for custom []byte fields like PrivateKey and Certificate.
+type importCertificateInput struct {
+	*svcsdk.ImportCertificateInput
+}
+
+func (c *importCertificateInput) SetPrivateKey(_ *ackv1alpha1.SecretKeyReference) {}
+
+func (c *importCertificateInput) SetCertificate(_ *ackv1alpha1.SecretKeyReference) {}
+
+func (c *importCertificateInput) SetCertificateChain(_ *ackv1alpha1.SecretKeyReference) {}

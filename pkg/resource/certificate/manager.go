@@ -51,7 +51,7 @@ var (
 // +kubebuilder:rbac:groups=acm.services.k8s.aws,resources=certificates,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=acm.services.k8s.aws,resources=certificates/status,verbs=get;update;patch
 
-var lateInitializeFieldNames = []string{"DomainValidationOptions", "KeyAlgorithm", "Options", "SubjectAlternativeNames"}
+var lateInitializeFieldNames = []string{"KeyAlgorithm", "Options"}
 
 // resourceManager is responsible for providing a consistent way to perform
 // CRUD operations in a backend AWS service API for Book custom resources.
@@ -226,6 +226,17 @@ func (rm *resourceManager) LateInitialize(
 		ackcondition.SetSynced(latestCopy, corev1.ConditionFalse, nil, nil)
 		return latestCopy, err
 	}
+	{
+		observedKo := rm.concreteResource(observed).ko
+		latestKo := rm.concreteResource(latestCopy).ko
+		if observedKo.Spec.DomainValidationOptions != nil && latestKo.Spec.DomainValidationOptions == nil {
+			latestKo.Spec.DomainValidationOptions = observedKo.Spec.DomainValidationOptions
+		}
+		if observedKo.Spec.SubjectAlternativeNames != nil && latestKo.Spec.SubjectAlternativeNames == nil {
+			latestKo.Spec.SubjectAlternativeNames = observedKo.Spec.SubjectAlternativeNames
+		}
+	}
+
 	lateInitializedRes := rm.lateInitializeFromReadOneOutput(observed, latestCopy)
 	incompleteInitialization := rm.incompleteLateInitialization(lateInitializedRes)
 	if incompleteInitialization {
@@ -249,16 +260,10 @@ func (rm *resourceManager) incompleteLateInitialization(
 	res acktypes.AWSResource,
 ) bool {
 	ko := rm.concreteResource(res).ko.DeepCopy()
-	if ko.Spec.DomainValidationOptions == nil {
-		return true
-	}
 	if ko.Spec.KeyAlgorithm == nil {
 		return true
 	}
 	if ko.Spec.Options == nil {
-		return true
-	}
-	if ko.Spec.SubjectAlternativeNames == nil {
 		return true
 	}
 	return false
@@ -272,17 +277,11 @@ func (rm *resourceManager) lateInitializeFromReadOneOutput(
 ) acktypes.AWSResource {
 	observedKo := rm.concreteResource(observed).ko.DeepCopy()
 	latestKo := rm.concreteResource(latest).ko.DeepCopy()
-	if observedKo.Spec.DomainValidationOptions != nil && latestKo.Spec.DomainValidationOptions == nil {
-		latestKo.Spec.DomainValidationOptions = observedKo.Spec.DomainValidationOptions
-	}
 	if observedKo.Spec.KeyAlgorithm != nil && latestKo.Spec.KeyAlgorithm == nil {
 		latestKo.Spec.KeyAlgorithm = observedKo.Spec.KeyAlgorithm
 	}
 	if observedKo.Spec.Options != nil && latestKo.Spec.Options == nil {
 		latestKo.Spec.Options = observedKo.Spec.Options
-	}
-	if observedKo.Spec.SubjectAlternativeNames != nil && latestKo.Spec.SubjectAlternativeNames == nil {
-		latestKo.Spec.SubjectAlternativeNames = observedKo.Spec.SubjectAlternativeNames
 	}
 	return &resource{latestKo}
 }

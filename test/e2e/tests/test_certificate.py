@@ -15,14 +15,17 @@
 """
 
 import time
-
+import base64
 import pytest
 
+from typing import Dict, Tuple
+from kubernetes import client
 from acktest.k8s import resource as k8s, condition
 from acktest.resources import random_suffix_name
 from e2e import service_marker, CRD_GROUP, CRD_VERSION, load_resource
 from e2e.replacement_values import REPLACEMENT_VALUES
 from e2e import certificate
+from e2e.x509 import create_x509_certificate
 from acktest import tags
 
 RESOURCE_PLURAL = 'certificates'
@@ -37,8 +40,9 @@ DELETE_WAIT_AFTER_SECONDS = 30
 # Time we wait for the certificate to get to ACK.ResourceSynced=True
 MAX_WAIT_FOR_SYNCED_MINUTES = 1
 
+
 @pytest.fixture
-def certificate_public(request):
+def certificate_public(request) -> Tuple[k8s.CustomResourceReference, Dict]:
     certificate_name = random_suffix_name("certificate", 20)
     domain_name = "example.com"
 
@@ -71,6 +75,52 @@ def certificate_public(request):
         _, deleted = k8s.delete_custom_resource(ref, 3, 10)
         assert deleted
         certificate.wait_until_deleted(cr["status"]["ackResourceMetadata"]["arn"])
+    except:
+        pass
+
+
+@pytest.fixture
+def certificate_import() -> Tuple[k8s.CustomResourceReference, Dict]:
+    certificate_name = random_suffix_name("certificate-imported", 30)
+    body = client.V1Secret()
+    private_key, cert = create_x509_certificate('ACK', 'services.k8s.aws', 'acm.services.k8s.aws')
+    body.data = {
+        'tls.key': base64.b64encode(private_key).decode('utf-8'),
+        'tls.crt': base64.b64encode(cert).decode('utf-8')
+    }
+    body.metadata = {'name': certificate_name}
+    body.type = 'Opaque'
+    api_client = k8s_client()
+    client.CoreV1Api(api_client).create_namespaced_secret('default', api_client.sanitize_for_serialization(body))
+
+    replacements = REPLACEMENT_VALUES.copy()
+    replacements['CERTIFICATE_NAME'] = certificate_name
+
+    resource_data = load_resource(
+        'certificate_imported',
+        additional_replacements=replacements,
+    )
+
+    # Create the k8s resource
+    ref = k8s.CustomResourceReference(
+        CRD_GROUP, CRD_VERSION, RESOURCE_PLURAL,
+        certificate_name, namespace='default',
+    )
+    k8s.create_custom_resource(ref, resource_data)
+    cr = k8s.wait_resource_consumed_by_controller(ref)
+
+    assert cr is not None
+    assert k8s.get_resource_exists(ref)
+
+    time.sleep(CREATE_WAIT_AFTER_SECONDS)
+
+    yield ref, cr
+
+    try:
+        _, deleted = k8s.delete_custom_resource(ref, 3, 10)
+        assert deleted
+        certificate.wait_until_deleted(cr['status']['ackResourceMetadata']['arn'])
+        k8s.delete_secret('default', certificate_name)
     except:
         pass
 
@@ -190,3 +240,62 @@ class TestCertificate:
             'status': 'True',
             'type': condition.CONDITION_TYPE_TERMINAL,
         }
+
+    def test_import_certificate(
+            self,
+            certificate_import,
+    ):
+        (ref, cr) = certificate_import
+        assert k8s.wait_on_condition(
+            ref,
+            condition.CONDITION_TYPE_RESOURCE_SYNCED,
+            "True",
+            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
+        )
+        assert k8s.get_resource_condition(ref, condition.CONDITION_TYPE_TERMINAL) is None
+
+        assert 'status' in cr
+        status = cr['status']
+        assert 'ackResourceMetadata' in status
+        assert 'arn' in status['ackResourceMetadata']
+        certificate_arn = status['ackResourceMetadata']['arn']
+        assert status['type_'] == 'IMPORTED'
+        assert status['status'] == 'ISSUED'
+        assert status['subject'] == 'O=ACK,CN=services.k8s.aws'
+
+        assert certificate.get(certificate_arn) is not None
+
+        updates = {
+            'spec': {
+                'options': {
+                    'certificateTransparencyLoggingPreference': 'ENABLED'
+                }
+            },
+        }
+        k8s.patch_custom_resource(ref, updates)
+        time.sleep(10)
+        assert k8s.wait_on_condition(
+            ref,
+            condition.CONDITION_TYPE_TERMINAL,
+            'True',
+            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
+        )
+
+        updates = {
+            'spec': {
+                'options': {
+                    'certificateTransparencyLoggingPreference': 'DISABLED'
+                }
+            },
+        }
+        k8s.patch_custom_resource(ref, updates)
+        time.sleep(10)
+        assert k8s.get_resource_condition(ref, condition.CONDITION_TYPE_TERMINAL) is None
+
+        k8s.delete_custom_resource(ref)
+        time.sleep(DELETE_WAIT_AFTER_SECONDS)
+        certificate.wait_until_deleted(certificate_arn)
+
+
+def k8s_client():
+    return k8s._get_k8s_api_client()

@@ -43,12 +43,22 @@ func newResourceDelta(
 		return delta
 	}
 
+	if ackcompare.HasNilDifference(a.ko.Spec.CertificateARN, b.ko.Spec.CertificateARN) {
+		delta.Add("Spec.CertificateARN", a.ko.Spec.CertificateARN, b.ko.Spec.CertificateARN)
+	} else if a.ko.Spec.CertificateARN != nil && b.ko.Spec.CertificateARN != nil {
+		if *a.ko.Spec.CertificateARN != *b.ko.Spec.CertificateARN {
+			delta.Add("Spec.CertificateARN", a.ko.Spec.CertificateARN, b.ko.Spec.CertificateARN)
+		}
+	}
 	if ackcompare.HasNilDifference(a.ko.Spec.CertificateAuthorityARN, b.ko.Spec.CertificateAuthorityARN) {
 		delta.Add("Spec.CertificateAuthorityARN", a.ko.Spec.CertificateAuthorityARN, b.ko.Spec.CertificateAuthorityARN)
 	} else if a.ko.Spec.CertificateAuthorityARN != nil && b.ko.Spec.CertificateAuthorityARN != nil {
 		if *a.ko.Spec.CertificateAuthorityARN != *b.ko.Spec.CertificateAuthorityARN {
 			delta.Add("Spec.CertificateAuthorityARN", a.ko.Spec.CertificateAuthorityARN, b.ko.Spec.CertificateAuthorityARN)
 		}
+	}
+	if !reflect.DeepEqual(a.ko.Spec.CertificateAuthorityRef, b.ko.Spec.CertificateAuthorityRef) {
+		delta.Add("Spec.CertificateAuthorityRef", a.ko.Spec.CertificateAuthorityRef, b.ko.Spec.CertificateAuthorityRef)
 	}
 	if ackcompare.HasNilDifference(a.ko.Spec.DomainName, b.ko.Spec.DomainName) {
 		delta.Add("Spec.DomainName", a.ko.Spec.DomainName, b.ko.Spec.DomainName)
