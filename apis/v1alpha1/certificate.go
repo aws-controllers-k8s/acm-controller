@@ -22,8 +22,13 @@ import (
 
 // CertificateSpec defines the desired state of Certificate.
 type CertificateSpec struct {
-	Certificate    *ackv1alpha1.SecretKeyReference `json:"certificate,omitempty"`
-	CertificateARN *string                         `json:"certificateARN,omitempty"`
+
+	// The Certificate to import into AWS Certificate Manager (ACM) to use with services that are integrated with ACM.
+	// This field is only valid when importing an existing certificate into ACM.
+	Certificate *ackv1alpha1.SecretKeyReference `json:"certificate,omitempty"`
+	// The Amazon Resource Name (ARN) of an imported certificate to replace. This field is only valid when importing
+	// an existing certificate into ACM.
+	CertificateARN *string `json:"certificateARN,omitempty"`
 	// The Amazon Resource Name (ARN) of the private certificate authority (CA)
 	// that will be used to issue the certificate. If you do not provide an ARN
 	// and you are trying to request a private certificate, ACM will attempt to
@@ -67,7 +72,9 @@ type CertificateSpec struct {
 	// Certificates that have not been logged typically produce an error message
 	// in a browser. For more information, see Opting Out of Certificate Transparency
 	// Logging (https://docs.aws.amazon.com/acm/latest/userguide/acm-bestpractices.html#best-practices-transparency).
-	Options    *CertificateOptions             `json:"options,omitempty"`
+	Options *CertificateOptions `json:"options,omitempty"`
+	// The private key that matches the public key in the certificate. This field is only valid when importing
+	// an existing certificate into ACM.
 	PrivateKey *ackv1alpha1.SecretKeyReference `json:"privateKey,omitempty"`
 	// Additional FQDNs to be included in the Subject Alternative Name extension
 	// of the ACM certificate. For example, add the name www.example.net to a certificate
