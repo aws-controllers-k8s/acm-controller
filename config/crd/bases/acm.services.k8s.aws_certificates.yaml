@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.2
   name: certificates.acm.services.k8s.aws
 spec:
   group: acm.services.k8s.aws
@@ -48,7 +48,6 @@ spec:
                   Amazon Web Services Private Certificate Authority (https://docs.aws.amazon.com/privateca/latest/userguide/PcaWelcome.html)
                   user guide. The ARN must have the following form:
 
-
                   arn:aws:acm-pca:region:account:certificate-authority/12345678-1234-1234-1234-123456789012
                 type: string
               domainName:
@@ -57,7 +56,6 @@ spec:
                   to secure with an ACM certificate. Use an asterisk (*) to create a wildcard
                   certificate that protects several sites in the same domain. For example,
                   *.example.com protects www.example.com, site.example.com, and images.example.com.
-
 
                   In compliance with RFC 5280 (https://datatracker.ietf.org/doc/html/rfc5280),
                   the length of the domain name (technically, the Common Name) that you provide
@@ -92,7 +90,6 @@ spec:
                   broken. Check the requirements for the AWS service where you plan to deploy
                   your certificate.
 
-
                   Default: RSA_2048
                 type: string
               options:
@@ -117,21 +114,17 @@ spec:
                   names. If you need more than 10 names, you must request a quota increase.
                   For more information, see Quotas (https://docs.aws.amazon.com/acm/latest/userguide/acm-limits.html).
 
-
                   The maximum length of a SAN DNS name is 253 octets. The name is made up of
                   multiple labels separated by periods. No label can be longer than 63 octets.
                   Consider the following examples:
-
 
                      * (63 octets).(63 octets).(63 octets).(61 octets) is legal because the
                      total length is 253 octets (63+1+63+1+63+1+61) and no label exceeds 63
                      octets.
 
-
                      * (64 octets).(63 octets).(63 octets).(61 octets) is not legal because
                      the total length exceeds 253 octets (64+1+63+1+63+1+61) and the first
                      label exceeds 63 octets.
-
 
                      * (63 octets).(63 octets).(63 octets).(62 octets) is not legal because
                      the total length of the DNS name (63+1+63+1+63+1+62) exceeds 253 octets.
@@ -170,7 +163,6 @@ spec:
                       when it has verified that an "adopted" resource (a resource where the
                       ARN annotation was set by the Kubernetes user on the CR) exists and
                       matches the supplied CR's Spec field values.
-                      TODO(vijat@): Find a better strategy for resources that do not have ARN in CreateOutputResponse
                       https://github.com/aws/aws-controllers-k8s/issues/270
                     type: string
                   ownerAccountID:
@@ -401,7 +393,6 @@ spec:
               status:
                 description: |-
                   The status of the certificate.
-
 
                   A certificate enters status PENDING_VALIDATION upon being requested, unless
                   it fails for any of the reasons given in the troubleshooting topic Certificate
