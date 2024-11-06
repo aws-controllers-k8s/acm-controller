@@ -90,6 +90,14 @@ rules:
   - patch
   - update
 - apiGroups:
+  - acmpca.services.k8s.aws
+  resources:
+  - certificateauthorities
+  - certificateauthorities/status
+  verbs:
+  - get
+  - list
+- apiGroups:
   - services.k8s.aws
   resources:
   - adoptedresources

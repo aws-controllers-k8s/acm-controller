@@ -1,0 +1,15 @@
+resources:
+  Certificate:
+    fields:
+      Certificate:
+        prepend: |
+          The Certificate to import into AWS Certificate Manager (ACM) to use with services that are integrated with ACM.
+          This field is only valid when importing an existing certificate into ACM.
+      PrivateKey:
+        prepend: |
+          The private key that matches the public key in the certificate. This field is only valid when importing
+          an existing certificate into ACM.
+      CertificateARN:
+        prepend: |
+          The Amazon Resource Name (ARN) of an imported certificate to replace. This field is only valid when importing
+          an existing certificate into ACM.
