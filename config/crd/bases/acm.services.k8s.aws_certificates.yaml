@@ -78,7 +78,7 @@ spec:
               certificateAuthorityRef:
                 description: "AWSResourceReferenceWrapper provides a wrapper around
                   *AWSResourceReference\ntype to provide more user friendly syntax
-                  for references using 'from' field\nEx:\nAPIIDRef:\n\n\n\tfrom:\n\t
+                  for references using 'from' field\nEx:\nAPIIDRef:\n\n\tfrom:\n\t
                   \ name: my-api"
                 properties:
                   from:

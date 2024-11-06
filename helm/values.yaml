@@ -158,19 +158,9 @@ leaderElection:
 # can be individually enabled ("true") or disabled ("false") by adding key/value
 # pairs below.
 featureGates:
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> da90cd6 (Add documentation)
   # Enables the Service level granularity for CARM. See https://github.com/aws-controllers-k8s/community/issues/2031
   ServiceLevelCARM: false
   # Enables the Team level granularity for CARM. See https://github.com/aws-controllers-k8s/community/issues/2031
   TeamLevelCARM: false
-<<<<<<< HEAD
   # Enable ReadOnlyResources feature/annotation. 
   ReadOnlyResources: false
-=======
-  CARMv2: false
->>>>>>> c27e546 (Use a secret for CertificateChain and a ref for CertificateAuthorityARN)
-=======
->>>>>>> da90cd6 (Add documentation)

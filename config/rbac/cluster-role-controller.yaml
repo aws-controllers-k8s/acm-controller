@@ -46,12 +46,6 @@ rules:
   - acmpca.services.k8s.aws
   resources:
   - certificateauthorities
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - acmpca.services.k8s.aws
-  resources:
   - certificateauthorities/status
   verbs:
   - get
