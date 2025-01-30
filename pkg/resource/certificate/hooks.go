@@ -21,7 +21,7 @@ import (
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
-	svcsdk "github.com/aws/aws-sdk-go/service/acm"
+	svcsdk "github.com/aws/aws-sdk-go-v2/service/acm"
 
 	"github.com/aws-controllers-k8s/acm-controller/pkg/tags"
 )
@@ -106,7 +106,7 @@ func (rm *resourceManager) importCertificate(
 	exit := rlog.Trace("rm.importCertificate")
 	defer func(err error) { exit(err) }(err)
 
-	resp, respErr := rm.sdkapi.ImportCertificateWithContext(ctx, input)
+	resp, respErr := rm.sdkapi.ImportCertificate(ctx, input)
 	rm.metrics.RecordAPICall("CREATE", "ImportCertificate", respErr)
 	if respErr != nil {
 		return nil, respErr
@@ -123,11 +123,8 @@ func (rm *resourceManager) importCertificate(
 // importCertificateInput exists as a workaround for a limitation in code-generator.
 // code-generator does not resolve secret key references for custom []byte fields like PrivateKey and Certificate.
 type importCertificateInput struct {
+	Certificate      *ackv1alpha1.SecretKeyReference
+	CertificateChain *ackv1alpha1.SecretKeyReference
+	PrivateKey       *ackv1alpha1.SecretKeyReference
 	*svcsdk.ImportCertificateInput
 }
-
-func (c *importCertificateInput) SetPrivateKey(_ *ackv1alpha1.SecretKeyReference) {}
-
-func (c *importCertificateInput) SetCertificate(_ *ackv1alpha1.SecretKeyReference) {}
-
-func (c *importCertificateInput) SetCertificateChain(_ *ackv1alpha1.SecretKeyReference) {}

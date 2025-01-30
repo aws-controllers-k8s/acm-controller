@@ -31,7 +31,7 @@ func (rm *resourceManager) new{{ $inputShapeName }}(
             return nil, ackrequeue.Needed(err)
         }
         if tmpSecret != "" {
-            input.{{$fieldName}} = []byte(tmpSecret)
+            input.ImportCertificateInput.{{$fieldName}} = []byte(tmpSecret)
         }
     }
     {{end}}

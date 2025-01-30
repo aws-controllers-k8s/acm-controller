@@ -16,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	acmpcaapitypes "github.com/aws-controllers-k8s/acmpca-controller/apis/v1alpha1"
@@ -38,7 +39,6 @@ import (
 
 	svctypes "github.com/aws-controllers-k8s/acm-controller/apis/v1alpha1"
 	svcresource "github.com/aws-controllers-k8s/acm-controller/pkg/resource"
-	svcsdk "github.com/aws/aws-sdk-go/service/acm"
 
 	_ "github.com/aws-controllers-k8s/acm-controller/pkg/resource/certificate"
 
@@ -46,11 +46,10 @@ import (
 )
 
 var (
-	awsServiceAPIGroup    = "acm.services.k8s.aws"
-	awsServiceAlias       = "acm"
-	awsServiceEndpointsID = svcsdk.EndpointsID
-	scheme                = runtime.NewScheme()
-	setupLog              = ctrlrt.Log.WithName("setup")
+	awsServiceAPIGroup = "acm.services.k8s.aws"
+	awsServiceAlias    = "acm"
+	scheme             = runtime.NewScheme()
+	setupLog           = ctrlrt.Log.WithName("setup")
 )
 
 func init() {
@@ -73,7 +72,8 @@ func main() {
 		resourceGVKs = append(resourceGVKs, mf.ResourceDescriptor().GroupVersionKind())
 	}
 
-	if err := ackCfg.Validate(ackcfg.WithGVKs(resourceGVKs)); err != nil {
+	ctx := context.Background()
+	if err := ackCfg.Validate(ctx, ackcfg.WithGVKs(resourceGVKs)); err != nil {
 		setupLog.Error(
 			err, "Unable to create controller manager",
 			"aws.service", awsServiceAlias,
@@ -138,7 +138,7 @@ func main() {
 		"aws.service", awsServiceAlias,
 	)
 	sc := ackrt.NewServiceController(
-		awsServiceAlias, awsServiceAPIGroup, awsServiceEndpointsID,
+		awsServiceAlias, awsServiceAPIGroup,
 		acktypes.VersionInfo{
 			version.GitCommit,
 			version.GitVersion,

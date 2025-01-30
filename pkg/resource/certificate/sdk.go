@@ -28,8 +28,10 @@ import (
 	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	ackrequeue "github.com/aws-controllers-k8s/runtime/pkg/requeue"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
-	"github.com/aws/aws-sdk-go/aws"
-	svcsdk "github.com/aws/aws-sdk-go/service/acm"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	svcsdk "github.com/aws/aws-sdk-go-v2/service/acm"
+	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/acm/types"
+	smithy "github.com/aws/smithy-go"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -40,8 +42,7 @@ import (
 var (
 	_ = &metav1.Time{}
 	_ = strings.ToLower("")
-	_ = &aws.JSONValue{}
-	_ = &svcsdk.ACM{}
+	_ = &svcsdk.Client{}
 	_ = &svcapitypes.Certificate{}
 	_ = ackv1alpha1.AWSAccountID("")
 	_ = &ackerr.NotFound
@@ -49,6 +50,7 @@ var (
 	_ = &reflect.Value{}
 	_ = fmt.Sprintf("")
 	_ = &ackrequeue.NoRequeue{}
+	_ = &aws.Config{}
 )
 
 // sdkFind returns SDK-specific information about a supplied resource
@@ -74,13 +76,11 @@ func (rm *resourceManager) sdkFind(
 	}
 
 	var resp *svcsdk.DescribeCertificateOutput
-	resp, err = rm.sdkapi.DescribeCertificateWithContext(ctx, input)
+	resp, err = rm.sdkapi.DescribeCertificate(ctx, input)
 	rm.metrics.RecordAPICall("READ_ONE", "DescribeCertificate", err)
 	if err != nil {
-		if reqErr, ok := ackerr.AWSRequestFailure(err); ok && reqErr.StatusCode() == 404 {
-			return nil, ackerr.NotFound
-		}
-		if awsErr, ok := ackerr.AWSError(err); ok && awsErr.Code() == "UNKNOWN" {
+		var awsErr smithy.APIError
+		if errors.As(err, &awsErr) && awsErr.ErrorCode() == "ResourceNotFoundException" {
 			return nil, ackerr.NotFound
 		}
 		return nil, err
@@ -101,8 +101,8 @@ func (rm *resourceManager) sdkFind(
 				if dvsiter.ResourceRecord.Name != nil {
 					dvselem.ResourceRecord.Name = dvsiter.ResourceRecord.Name
 				}
-				if dvsiter.ResourceRecord.Type != nil {
-					dvselem.ResourceRecord.Type = dvsiter.ResourceRecord.Type
+				if dvsiter.ResourceRecord.Type != "" {
+					dvselem.ResourceRecord.Type = aws.String(string(dvsiter.ResourceRecord.Type))
 				}
 				if dvsiter.ResourceRecord.Value != nil {
 					dvselem.ResourceRecord.Value = dvsiter.ResourceRecord.Value
@@ -111,14 +111,14 @@ func (rm *resourceManager) sdkFind(
 			if dvsiter.ValidationDomain != nil {
 				dvselem.ValidationDomain = dvsiter.ValidationDomain
 			}
-			if dvsiter.ValidationEmails != nil {
-				dvselem.ValidationEmails = dvsiter.ValidationEmails
+			for _, ve := range dvsiter.ValidationEmails {
+				dvselem.ValidationEmails = append(dvselem.ValidationEmails, &ve)
 			}
-			if dvsiter.ValidationMethod != nil {
-				dvselem.ValidationMethod = dvsiter.ValidationMethod
+			if dvsiter.ValidationMethod != "" {
+				dvselem.ValidationMethod = aws.String(string(dvsiter.ValidationMethod))
 			}
-			if dvsiter.ValidationStatus != nil {
-				dvselem.ValidationStatus = dvsiter.ValidationStatus
+			if dvsiter.ValidationStatus != "" {
+				dvselem.ValidationStatus = aws.String(string(dvsiter.ValidationStatus))
 			}
 			dvs = append(dvs, dvselem)
 		}
@@ -176,8 +176,8 @@ func (rm *resourceManager) sdkFind(
 		f5 := []*svcapitypes.ExtendedKeyUsage{}
 		for _, f5iter := range resp.Certificate.ExtendedKeyUsages {
 			f5elem := &svcapitypes.ExtendedKeyUsage{}
-			if f5iter.Name != nil {
-				f5elem.Name = f5iter.Name
+			if f5iter.Name != "" {
+				f5elem.Name = aws.String(string(f5iter.Name))
 			}
 			if f5iter.OID != nil {
 				f5elem.OID = f5iter.OID
@@ -188,8 +188,8 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Status.ExtendedKeyUsages = nil
 	}
-	if resp.Certificate.FailureReason != nil {
-		ko.Status.FailureReason = resp.Certificate.FailureReason
+	if resp.Certificate.FailureReason != "" {
+		ko.Status.FailureReason = aws.String(string(resp.Certificate.FailureReason))
 	} else {
 		ko.Status.FailureReason = nil
 	}
@@ -199,13 +199,7 @@ func (rm *resourceManager) sdkFind(
 		ko.Status.ImportedAt = nil
 	}
 	if resp.Certificate.InUseBy != nil {
-		f8 := []*string{}
-		for _, f8iter := range resp.Certificate.InUseBy {
-			var f8elem string
-			f8elem = *f8iter
-			f8 = append(f8, &f8elem)
-		}
-		ko.Status.InUseBy = f8
+		ko.Status.InUseBy = aws.StringSlice(resp.Certificate.InUseBy)
 	} else {
 		ko.Status.InUseBy = nil
 	}
@@ -219,8 +213,8 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Status.Issuer = nil
 	}
-	if resp.Certificate.KeyAlgorithm != nil {
-		ko.Spec.KeyAlgorithm = resp.Certificate.KeyAlgorithm
+	if resp.Certificate.KeyAlgorithm != "" {
+		ko.Spec.KeyAlgorithm = aws.String(string(resp.Certificate.KeyAlgorithm))
 	} else {
 		ko.Spec.KeyAlgorithm = nil
 	}
@@ -228,8 +222,8 @@ func (rm *resourceManager) sdkFind(
 		f12 := []*svcapitypes.KeyUsage{}
 		for _, f12iter := range resp.Certificate.KeyUsages {
 			f12elem := &svcapitypes.KeyUsage{}
-			if f12iter.Name != nil {
-				f12elem.Name = f12iter.Name
+			if f12iter.Name != "" {
+				f12elem.Name = aws.String(string(f12iter.Name))
 			}
 			f12 = append(f12, f12elem)
 		}
@@ -249,15 +243,15 @@ func (rm *resourceManager) sdkFind(
 	}
 	if resp.Certificate.Options != nil {
 		f15 := &svcapitypes.CertificateOptions{}
-		if resp.Certificate.Options.CertificateTransparencyLoggingPreference != nil {
-			f15.CertificateTransparencyLoggingPreference = resp.Certificate.Options.CertificateTransparencyLoggingPreference
+		if resp.Certificate.Options.CertificateTransparencyLoggingPreference != "" {
+			f15.CertificateTransparencyLoggingPreference = aws.String(string(resp.Certificate.Options.CertificateTransparencyLoggingPreference))
 		}
 		ko.Spec.Options = f15
 	} else {
 		ko.Spec.Options = nil
 	}
-	if resp.Certificate.RenewalEligibility != nil {
-		ko.Status.RenewalEligibility = resp.Certificate.RenewalEligibility
+	if resp.Certificate.RenewalEligibility != "" {
+		ko.Status.RenewalEligibility = aws.String(string(resp.Certificate.RenewalEligibility))
 	} else {
 		ko.Status.RenewalEligibility = nil
 	}
@@ -275,8 +269,8 @@ func (rm *resourceManager) sdkFind(
 					if f17f0iter.ResourceRecord.Name != nil {
 						f17f0elemf1.Name = f17f0iter.ResourceRecord.Name
 					}
-					if f17f0iter.ResourceRecord.Type != nil {
-						f17f0elemf1.Type = f17f0iter.ResourceRecord.Type
+					if f17f0iter.ResourceRecord.Type != "" {
+						f17f0elemf1.Type = aws.String(string(f17f0iter.ResourceRecord.Type))
 					}
 					if f17f0iter.ResourceRecord.Value != nil {
 						f17f0elemf1.Value = f17f0iter.ResourceRecord.Value
@@ -287,29 +281,23 @@ func (rm *resourceManager) sdkFind(
 					f17f0elem.ValidationDomain = f17f0iter.ValidationDomain
 				}
 				if f17f0iter.ValidationEmails != nil {
-					f17f0elemf3 := []*string{}
-					for _, f17f0elemf3iter := range f17f0iter.ValidationEmails {
-						var f17f0elemf3elem string
-						f17f0elemf3elem = *f17f0elemf3iter
-						f17f0elemf3 = append(f17f0elemf3, &f17f0elemf3elem)
-					}
-					f17f0elem.ValidationEmails = f17f0elemf3
+					f17f0elem.ValidationEmails = aws.StringSlice(f17f0iter.ValidationEmails)
 				}
-				if f17f0iter.ValidationMethod != nil {
-					f17f0elem.ValidationMethod = f17f0iter.ValidationMethod
+				if f17f0iter.ValidationMethod != "" {
+					f17f0elem.ValidationMethod = aws.String(string(f17f0iter.ValidationMethod))
 				}
-				if f17f0iter.ValidationStatus != nil {
-					f17f0elem.ValidationStatus = f17f0iter.ValidationStatus
+				if f17f0iter.ValidationStatus != "" {
+					f17f0elem.ValidationStatus = aws.String(string(f17f0iter.ValidationStatus))
 				}
 				f17f0 = append(f17f0, f17f0elem)
 			}
 			f17.DomainValidationOptions = f17f0
 		}
-		if resp.Certificate.RenewalSummary.RenewalStatus != nil {
-			f17.RenewalStatus = resp.Certificate.RenewalSummary.RenewalStatus
+		if resp.Certificate.RenewalSummary.RenewalStatus != "" {
+			f17.RenewalStatus = aws.String(string(resp.Certificate.RenewalSummary.RenewalStatus))
 		}
-		if resp.Certificate.RenewalSummary.RenewalStatusReason != nil {
-			f17.RenewalStatusReason = resp.Certificate.RenewalSummary.RenewalStatusReason
+		if resp.Certificate.RenewalSummary.RenewalStatusReason != "" {
+			f17.RenewalStatusReason = aws.String(string(resp.Certificate.RenewalSummary.RenewalStatusReason))
 		}
 		if resp.Certificate.RenewalSummary.UpdatedAt != nil {
 			f17.UpdatedAt = &metav1.Time{*resp.Certificate.RenewalSummary.UpdatedAt}
@@ -318,8 +306,8 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Status.RenewalSummary = nil
 	}
-	if resp.Certificate.RevocationReason != nil {
-		ko.Status.RevocationReason = resp.Certificate.RevocationReason
+	if resp.Certificate.RevocationReason != "" {
+		ko.Status.RevocationReason = aws.String(string(resp.Certificate.RevocationReason))
 	} else {
 		ko.Status.RevocationReason = nil
 	}
@@ -338,8 +326,8 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Status.SignatureAlgorithm = nil
 	}
-	if resp.Certificate.Status != nil {
-		ko.Status.Status = resp.Certificate.Status
+	if resp.Certificate.Status != "" {
+		ko.Status.Status = aws.String(string(resp.Certificate.Status))
 	} else {
 		ko.Status.Status = nil
 	}
@@ -349,18 +337,12 @@ func (rm *resourceManager) sdkFind(
 		ko.Status.Subject = nil
 	}
 	if resp.Certificate.SubjectAlternativeNames != nil {
-		f24 := []*string{}
-		for _, f24iter := range resp.Certificate.SubjectAlternativeNames {
-			var f24elem string
-			f24elem = *f24iter
-			f24 = append(f24, &f24elem)
-		}
-		ko.Spec.SubjectAlternativeNames = f24
+		ko.Spec.SubjectAlternativeNames = aws.StringSlice(resp.Certificate.SubjectAlternativeNames)
 	} else {
 		ko.Spec.SubjectAlternativeNames = nil
 	}
-	if resp.Certificate.Type != nil {
-		ko.Status.Type = resp.Certificate.Type
+	if resp.Certificate.Type != "" {
+		ko.Status.Type = aws.String(string(resp.Certificate.Type))
 	} else {
 		ko.Status.Type = nil
 	}
@@ -387,7 +369,7 @@ func (rm *resourceManager) newDescribeRequestPayload(
 	res := &svcsdk.DescribeCertificateInput{}
 
 	if r.ko.Status.ACKResourceMetadata != nil && r.ko.Status.ACKResourceMetadata.ARN != nil {
-		res.SetCertificateArn(string(*r.ko.Status.ACKResourceMetadata.ARN))
+		res.CertificateArn = (*string)(r.ko.Status.ACKResourceMetadata.ARN)
 	}
 
 	return res, nil
@@ -420,11 +402,11 @@ func (rm *resourceManager) sdkCreate(
 	if err != nil {
 		return nil, err
 	}
-	input.SetValidationMethod("DNS")
+	input.ValidationMethod = "DNS"
 
 	var resp *svcsdk.RequestCertificateOutput
 	_ = resp
-	resp, err = rm.sdkapi.RequestCertificateWithContext(ctx, input)
+	resp, err = rm.sdkapi.RequestCertificate(ctx, input)
 	rm.metrics.RecordAPICall("CREATE", "RequestCertificate", err)
 	if err != nil {
 		return nil, err
@@ -454,57 +436,51 @@ func (rm *resourceManager) newCreateRequestPayload(
 	res := &svcsdk.RequestCertificateInput{}
 
 	if r.ko.Spec.CertificateAuthorityARN != nil {
-		res.SetCertificateAuthorityArn(*r.ko.Spec.CertificateAuthorityARN)
+		res.CertificateAuthorityArn = r.ko.Spec.CertificateAuthorityARN
 	}
 	if r.ko.Spec.DomainName != nil {
-		res.SetDomainName(*r.ko.Spec.DomainName)
+		res.DomainName = r.ko.Spec.DomainName
 	}
 	if r.ko.Spec.DomainValidationOptions != nil {
-		f2 := []*svcsdk.DomainValidationOption{}
+		f2 := []svcsdktypes.DomainValidationOption{}
 		for _, f2iter := range r.ko.Spec.DomainValidationOptions {
-			f2elem := &svcsdk.DomainValidationOption{}
+			f2elem := &svcsdktypes.DomainValidationOption{}
 			if f2iter.DomainName != nil {
-				f2elem.SetDomainName(*f2iter.DomainName)
+				f2elem.DomainName = f2iter.DomainName
 			}
 			if f2iter.ValidationDomain != nil {
-				f2elem.SetValidationDomain(*f2iter.ValidationDomain)
+				f2elem.ValidationDomain = f2iter.ValidationDomain
 			}
-			f2 = append(f2, f2elem)
+			f2 = append(f2, *f2elem)
 		}
-		res.SetDomainValidationOptions(f2)
+		res.DomainValidationOptions = f2
 	}
 	if r.ko.Spec.KeyAlgorithm != nil {
-		res.SetKeyAlgorithm(*r.ko.Spec.KeyAlgorithm)
+		res.KeyAlgorithm = svcsdktypes.KeyAlgorithm(*r.ko.Spec.KeyAlgorithm)
 	}
 	if r.ko.Spec.Options != nil {
-		f4 := &svcsdk.CertificateOptions{}
+		f4 := &svcsdktypes.CertificateOptions{}
 		if r.ko.Spec.Options.CertificateTransparencyLoggingPreference != nil {
-			f4.SetCertificateTransparencyLoggingPreference(*r.ko.Spec.Options.CertificateTransparencyLoggingPreference)
+			f4.CertificateTransparencyLoggingPreference = svcsdktypes.CertificateTransparencyLoggingPreference(*r.ko.Spec.Options.CertificateTransparencyLoggingPreference)
 		}
-		res.SetOptions(f4)
+		res.Options = f4
 	}
 	if r.ko.Spec.SubjectAlternativeNames != nil {
-		f5 := []*string{}
-		for _, f5iter := range r.ko.Spec.SubjectAlternativeNames {
-			var f5elem string
-			f5elem = *f5iter
-			f5 = append(f5, &f5elem)
-		}
-		res.SetSubjectAlternativeNames(f5)
+		res.SubjectAlternativeNames = aws.ToStringSlice(r.ko.Spec.SubjectAlternativeNames)
 	}
 	if r.ko.Spec.Tags != nil {
-		f6 := []*svcsdk.Tag{}
+		f6 := []svcsdktypes.Tag{}
 		for _, f6iter := range r.ko.Spec.Tags {
-			f6elem := &svcsdk.Tag{}
+			f6elem := &svcsdktypes.Tag{}
 			if f6iter.Key != nil {
-				f6elem.SetKey(*f6iter.Key)
+				f6elem.Key = f6iter.Key
 			}
 			if f6iter.Value != nil {
-				f6elem.SetValue(*f6iter.Value)
+				f6elem.Value = f6iter.Value
 			}
-			f6 = append(f6, f6elem)
+			f6 = append(f6, *f6elem)
 		}
-		res.SetTags(f6)
+		res.Tags = f6
 	}
 
 	return res, nil
@@ -553,7 +529,7 @@ func (rm *resourceManager) sdkUpdate(
 
 	var resp *svcsdk.UpdateCertificateOptionsOutput
 	_ = resp
-	resp, err = rm.sdkapi.UpdateCertificateOptionsWithContext(ctx, input)
+	resp, err = rm.sdkapi.UpdateCertificateOptions(ctx, input)
 	rm.metrics.RecordAPICall("UPDATE", "UpdateCertificateOptions", err)
 	if err != nil {
 		return nil, err
@@ -576,14 +552,14 @@ func (rm *resourceManager) newUpdateRequestPayload(
 	res := &svcsdk.UpdateCertificateOptionsInput{}
 
 	if r.ko.Status.ACKResourceMetadata != nil && r.ko.Status.ACKResourceMetadata.ARN != nil {
-		res.SetCertificateArn(string(*r.ko.Status.ACKResourceMetadata.ARN))
+		res.CertificateArn = (*string)(r.ko.Status.ACKResourceMetadata.ARN)
 	}
 	if r.ko.Spec.Options != nil {
-		f1 := &svcsdk.CertificateOptions{}
+		f1 := &svcsdktypes.CertificateOptions{}
 		if r.ko.Spec.Options.CertificateTransparencyLoggingPreference != nil {
-			f1.SetCertificateTransparencyLoggingPreference(*r.ko.Spec.Options.CertificateTransparencyLoggingPreference)
+			f1.CertificateTransparencyLoggingPreference = svcsdktypes.CertificateTransparencyLoggingPreference(*r.ko.Spec.Options.CertificateTransparencyLoggingPreference)
 		}
-		res.SetOptions(f1)
+		res.Options = f1
 	}
 
 	return res, nil
@@ -605,7 +581,7 @@ func (rm *resourceManager) sdkDelete(
 	}
 	var resp *svcsdk.DeleteCertificateOutput
 	_ = resp
-	resp, err = rm.sdkapi.DeleteCertificateWithContext(ctx, input)
+	resp, err = rm.sdkapi.DeleteCertificate(ctx, input)
 	rm.metrics.RecordAPICall("DELETE", "DeleteCertificate", err)
 	return nil, err
 }
@@ -618,7 +594,7 @@ func (rm *resourceManager) newDeleteRequestPayload(
 	res := &svcsdk.DeleteCertificateInput{}
 
 	if r.ko.Status.ACKResourceMetadata != nil && r.ko.Status.ACKResourceMetadata.ARN != nil {
-		res.SetCertificateArn(string(*r.ko.Status.ACKResourceMetadata.ARN))
+		res.CertificateArn = (*string)(r.ko.Status.ACKResourceMetadata.ARN)
 	}
 
 	return res, nil
@@ -731,12 +707,13 @@ func (rm *resourceManager) terminalAWSError(err error) bool {
 	if err == nil {
 		return false
 	}
-	awsErr, ok := ackerr.AWSError(err)
-	if !ok {
+
+	var terminalErr smithy.APIError
+	if !errors.As(err, &terminalErr) {
 		return false
 	}
-	switch awsErr.Code() {
-	case "InvalidParameter",
+	switch terminalErr.ErrorCode() {
+	case "InvalidParameterException",
 		"InvalidDomainValidationOptionsException",
 		"InvalidTagException",
 		"TagPolicyException",
@@ -780,30 +757,30 @@ func (rm *resourceManager) newImportCertificateInput(
 ) (*svcsdk.ImportCertificateInput, error) {
 	input := &importCertificateInput{ImportCertificateInput: &svcsdk.ImportCertificateInput{}}
 	if r.ko.Spec.Certificate != nil {
-		input.SetCertificate(r.ko.Spec.Certificate)
+		input.Certificate = r.ko.Spec.Certificate
 	}
 	if r.ko.Spec.CertificateARN != nil {
-		input.SetCertificateArn(*r.ko.Spec.CertificateARN)
+		input.CertificateArn = r.ko.Spec.CertificateARN
 	}
 	if r.ko.Spec.CertificateChain != nil {
-		input.SetCertificateChain(r.ko.Spec.CertificateChain)
+		input.CertificateChain = r.ko.Spec.CertificateChain
 	}
 	if r.ko.Spec.PrivateKey != nil {
-		input.SetPrivateKey(r.ko.Spec.PrivateKey)
+		input.PrivateKey = r.ko.Spec.PrivateKey
 	}
 	if r.ko.Spec.Tags != nil {
-		inputf4 := []*svcsdk.Tag{}
+		inputf4 := []svcsdktypes.Tag{}
 		for _, inputf4iter := range r.ko.Spec.Tags {
-			inputf4elem := &svcsdk.Tag{}
+			inputf4elem := &svcsdktypes.Tag{}
 			if inputf4iter.Key != nil {
-				inputf4elem.SetKey(*inputf4iter.Key)
+				inputf4elem.Key = inputf4iter.Key
 			}
 			if inputf4iter.Value != nil {
-				inputf4elem.SetValue(*inputf4iter.Value)
+				inputf4elem.Value = inputf4iter.Value
 			}
-			inputf4 = append(inputf4, inputf4elem)
+			inputf4 = append(inputf4, *inputf4elem)
 		}
-		input.SetTags(inputf4)
+		input.Tags = inputf4
 	}
 
 	{
@@ -812,7 +789,7 @@ func (rm *resourceManager) newImportCertificateInput(
 			return nil, ackrequeue.Needed(err)
 		}
 		if tmpSecret != "" {
-			input.PrivateKey = []byte(tmpSecret)
+			input.ImportCertificateInput.PrivateKey = []byte(tmpSecret)
 		}
 	}
 
@@ -822,7 +799,7 @@ func (rm *resourceManager) newImportCertificateInput(
 			return nil, ackrequeue.Needed(err)
 		}
 		if tmpSecret != "" {
-			input.Certificate = []byte(tmpSecret)
+			input.ImportCertificateInput.Certificate = []byte(tmpSecret)
 		}
 	}
 
@@ -832,7 +809,7 @@ func (rm *resourceManager) newImportCertificateInput(
 			return nil, ackrequeue.Needed(err)
 		}
 		if tmpSecret != "" {
-			input.CertificateChain = []byte(tmpSecret)
+			input.ImportCertificateInput.CertificateChain = []byte(tmpSecret)
 		}
 	}
 

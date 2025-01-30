@@ -10,8 +10,8 @@
 				if dvsiter.ResourceRecord.Name != nil {
 					dvselem.ResourceRecord.Name = dvsiter.ResourceRecord.Name
 				}
-				if dvsiter.ResourceRecord.Type != nil {
-					dvselem.ResourceRecord.Type = dvsiter.ResourceRecord.Type
+				if dvsiter.ResourceRecord.Type != "" {
+					dvselem.ResourceRecord.Type = aws.String(string(dvsiter.ResourceRecord.Type))
 				}
 				if dvsiter.ResourceRecord.Value != nil {
 					dvselem.ResourceRecord.Value = dvsiter.ResourceRecord.Value
@@ -20,14 +20,14 @@
 			if dvsiter.ValidationDomain != nil {
 				dvselem.ValidationDomain = dvsiter.ValidationDomain
 			}
-			if dvsiter.ValidationEmails != nil {
-				dvselem.ValidationEmails = dvsiter.ValidationEmails
+			for _, ve := range dvsiter.ValidationEmails {
+				dvselem.ValidationEmails = append(dvselem.ValidationEmails, &ve)
 			}
-			if dvsiter.ValidationMethod != nil {
-				dvselem.ValidationMethod = dvsiter.ValidationMethod
+			if dvsiter.ValidationMethod != "" {
+				dvselem.ValidationMethod = aws.String(string(dvsiter.ValidationMethod))
 			}
-			if dvsiter.ValidationStatus != nil {
-				dvselem.ValidationStatus = dvsiter.ValidationStatus
+			if dvsiter.ValidationStatus != "" {
+				dvselem.ValidationStatus = aws.String(string(dvsiter.ValidationStatus))
 			}
 			dvs = append(dvs, dvselem)
 		}
