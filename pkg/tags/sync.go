@@ -19,8 +19,8 @@ import (
 	"github.com/aws-controllers-k8s/acm-controller/apis/v1alpha1"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 
-	"github.com/aws/aws-sdk-go/aws/request"
-	svcsdk "github.com/aws/aws-sdk-go/service/acm"
+	svcsdk "github.com/aws/aws-sdk-go-v2/service/acm"
+	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/acm/types"
 )
 
 type metricsRecorder interface {
@@ -28,9 +28,9 @@ type metricsRecorder interface {
 }
 
 type tagsClient interface {
-	AddTagsToCertificateWithContext(context.Context, *svcsdk.AddTagsToCertificateInput, ...request.Option) (*svcsdk.AddTagsToCertificateOutput, error)
-	ListTagsForCertificateWithContext(context.Context, *svcsdk.ListTagsForCertificateInput, ...request.Option) (*svcsdk.ListTagsForCertificateOutput, error)
-	RemoveTagsFromCertificateWithContext(context.Context, *svcsdk.RemoveTagsFromCertificateInput, ...request.Option) (*svcsdk.RemoveTagsFromCertificateOutput, error)
+	AddTagsToCertificate(context.Context, *svcsdk.AddTagsToCertificateInput, ...func(*svcsdk.Options)) (*svcsdk.AddTagsToCertificateOutput, error)
+	ListTagsForCertificate(context.Context, *svcsdk.ListTagsForCertificateInput, ...func(*svcsdk.Options)) (*svcsdk.ListTagsForCertificateOutput, error)
+	RemoveTagsFromCertificate(context.Context, *svcsdk.RemoveTagsFromCertificateInput, ...func(*svcsdk.Options)) (*svcsdk.RemoveTagsFromCertificateOutput, error)
 }
 
 // syncTags examines the Tags in the supplied Resource and calls the
@@ -116,10 +116,10 @@ func addTags(
 	exit := rlog.Trace("rm.addTag")
 	defer func() { exit(err) }()
 
-	sdkTags := []*svcsdk.Tag{}
+	sdkTags := []svcsdktypes.Tag{}
 	for k, v := range tags {
 		k := k
-		sdkTags = append(sdkTags, &svcsdk.Tag{
+		sdkTags = append(sdkTags, svcsdktypes.Tag{
 			Key:   &k,
 			Value: v,
 		})
@@ -130,7 +130,7 @@ func addTags(
 		Tags:           sdkTags,
 	}
 
-	_, err = client.AddTagsToCertificateWithContext(ctx, input)
+	_, err = client.AddTagsToCertificate(ctx, input)
 	mr.RecordAPICall("UPDATE", "AddTagsToCertificate", err)
 	return err
 }
@@ -147,10 +147,10 @@ func removeTags(
 	exit := rlog.Trace("rm.removeTag")
 	defer func() { exit(err) }()
 
-	sdkTags := []*svcsdk.Tag{}
+	sdkTags := []svcsdktypes.Tag{}
 	for k, v := range tags {
 		k := k
-		sdkTags = append(sdkTags, &svcsdk.Tag{
+		sdkTags = append(sdkTags, svcsdktypes.Tag{
 			Key:   &k,
 			Value: v,
 		})
@@ -160,7 +160,7 @@ func removeTags(
 		CertificateArn: &resourceARN,
 		Tags:           sdkTags,
 	}
-	_, err = client.RemoveTagsFromCertificateWithContext(ctx, input)
+	_, err = client.RemoveTagsFromCertificate(ctx, input)
 	mr.RecordAPICall("UPDATE", "RemoveTagsFromCertificate", err)
 	return err
 }
@@ -178,7 +178,7 @@ func ListTags(
 	defer exit(err)
 
 	var listTagsOfResourceOutput *svcsdk.ListTagsForCertificateOutput
-	listTagsOfResourceOutput, err = client.ListTagsForCertificateWithContext(
+	listTagsOfResourceOutput, err = client.ListTagsForCertificate(
 		ctx,
 		&svcsdk.ListTagsForCertificateInput{
 			CertificateArn: &resourceARN,
@@ -192,7 +192,7 @@ func ListTags(
 }
 
 // resourceTagsFromSDKTags transforms a *svcsdk.Tag array to a *v1alpha1.Tag array.
-func resourceTagsFromSDKTags(svcTags []*svcsdk.Tag) []*v1alpha1.Tag {
+func resourceTagsFromSDKTags(svcTags []svcsdktypes.Tag) []*v1alpha1.Tag {
 	tags := make([]*v1alpha1.Tag, len(svcTags))
 	for i := range svcTags {
 		tags[i] = &v1alpha1.Tag{
