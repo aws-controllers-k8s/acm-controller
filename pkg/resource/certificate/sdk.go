@@ -499,10 +499,6 @@ func (rm *resourceManager) sdkUpdate(
 	defer func() {
 		exit(err)
 	}()
-	if immutableFieldChanges := rm.getImmutableFieldChanges(delta); len(immutableFieldChanges) > 0 {
-		msg := fmt.Sprintf("Immutable Spec fields have been modified: %s", strings.Join(immutableFieldChanges, ","))
-		return nil, ackerr.NewTerminalError(fmt.Errorf(msg))
-	}
 	if delta.DifferentAt("Spec.Tags") {
 		if err := syncTags(
 			ctx, rm.sdkapi, rm.metrics,
@@ -723,30 +719,6 @@ func (rm *resourceManager) terminalAWSError(err error) bool {
 	default:
 		return false
 	}
-}
-
-// getImmutableFieldChanges returns list of immutable fields from the
-func (rm *resourceManager) getImmutableFieldChanges(
-	delta *ackcompare.Delta,
-) []string {
-	var fields []string
-	if delta.DifferentAt("Spec.Certificate") {
-		fields = append(fields, "Certificate")
-	}
-	if delta.DifferentAt("Spec.CertificateArn") {
-		fields = append(fields, "CertificateArn")
-	}
-	if delta.DifferentAt("Spec.CertificateAuthorityARN") {
-		fields = append(fields, "CertificateAuthorityARN")
-	}
-	if delta.DifferentAt("Spec.CertificateChain") {
-		fields = append(fields, "CertificateChain")
-	}
-	if delta.DifferentAt("Spec.PrivateKey") {
-		fields = append(fields, "PrivateKey")
-	}
-
-	return fields
 }
 
 // newImportCertificateInput returns a ImportCertificateInput object

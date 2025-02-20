@@ -25,9 +25,11 @@ type CertificateSpec struct {
 
 	// The Certificate to import into AWS Certificate Manager (ACM) to use with services that are integrated with ACM.
 	// This field is only valid when importing an existing certificate into ACM.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	Certificate *ackv1alpha1.SecretKeyReference `json:"certificate,omitempty"`
 	// The Amazon Resource Name (ARN) of an imported certificate to replace. This field is only valid when importing
 	// an existing certificate into ACM.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	CertificateARN *string `json:"certificateARN,omitempty"`
 	// The Amazon Resource Name (ARN) of the private certificate authority (CA)
 	// that will be used to issue the certificate. If you do not provide an ARN
@@ -37,9 +39,11 @@ type CertificateSpec struct {
 	// user guide. The ARN must have the following form:
 	//
 	// arn:aws:acm-pca:region:account:certificate-authority/12345678-1234-1234-1234-123456789012
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	CertificateAuthorityARN *string                                  `json:"certificateAuthorityARN,omitempty"`
 	CertificateAuthorityRef *ackv1alpha1.AWSResourceReferenceWrapper `json:"certificateAuthorityRef,omitempty"`
-	CertificateChain        *ackv1alpha1.SecretKeyReference          `json:"certificateChain,omitempty"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
+	CertificateChain *ackv1alpha1.SecretKeyReference `json:"certificateChain,omitempty"`
 	// Fully qualified domain name (FQDN), such as www.example.com, that you want
 	// to secure with an ACM certificate. Use an asterisk (*) to create a wildcard
 	// certificate that protects several sites in the same domain. For example,
@@ -90,6 +94,7 @@ type CertificateSpec struct {
 	Options *CertificateOptions `json:"options,omitempty"`
 	// The private key that matches the public key in the certificate. This field is only valid when importing
 	// an existing certificate into ACM.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	PrivateKey *ackv1alpha1.SecretKeyReference `json:"privateKey,omitempty"`
 	// Additional FQDNs to be included in the Subject Alternative Name extension
 	// of the ACM certificate. For example, add the name www.example.net to a certificate
@@ -125,7 +130,7 @@ type CertificateStatus struct {
 	// constructed ARN for the resource
 	// +kubebuilder:validation:Optional
 	ACKResourceMetadata *ackv1alpha1.ResourceMetadata `json:"ackResourceMetadata"`
-	// All CRS managed by ACK have a common `Status.Conditions` member that
+	// All CRs managed by ACK have a common `Status.Conditions` member that
 	// contains a collection of `ackv1alpha1.Condition` objects that describe
 	// the various terminal states of the CR and its backend AWS service API
 	// resource
