@@ -59,11 +59,17 @@ spec:
                 - key
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: Value is immutable once set
+                  rule: self == oldSelf
               certificateARN:
                 description: |-
                   The Amazon Resource Name (ARN) of an imported certificate to replace. This field is only valid when importing
                   an existing certificate into ACM.
                 type: string
+                x-kubernetes-validations:
+                - message: Value is immutable once set
+                  rule: self == oldSelf
               certificateAuthorityARN:
                 description: |-
                   The Amazon Resource Name (ARN) of the private certificate authority (CA)
@@ -75,6 +81,9 @@ spec:
 
                   arn:aws:acm-pca:region:account:certificate-authority/12345678-1234-1234-1234-123456789012
                 type: string
+                x-kubernetes-validations:
+                - message: Value is immutable once set
+                  rule: self == oldSelf
               certificateAuthorityRef:
                 description: "AWSResourceReferenceWrapper provides a wrapper around
                   *AWSResourceReference\ntype to provide more user friendly syntax
@@ -112,6 +121,9 @@ spec:
                 - key
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: Value is immutable once set
+                  rule: self == oldSelf
               domainName:
                 description: |-
                   Fully qualified domain name (FQDN), such as www.example.com, that you want
@@ -201,6 +213,9 @@ spec:
                 - key
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: Value is immutable once set
+                  rule: self == oldSelf
               subjectAlternativeNames:
                 description: |-
                   Additional FQDNs to be included in the Subject Alternative Name extension
@@ -275,7 +290,7 @@ spec:
                 type: object
               conditions:
                 description: |-
-                  All CRS managed by ACK have a common `Status.Conditions` member that
+                  All CRs managed by ACK have a common `Status.Conditions` member that
                   contains a collection of `ackv1alpha1.Condition` objects that describe
                   the various terminal states of the CR and its backend AWS service API
                   resource
