@@ -57,6 +57,7 @@ type CertificateSpec struct {
 	DomainName *string `json:"domainName,omitempty"`
 	// The domain name that you want ACM to use to send you emails so that you can
 	// validate domain ownership.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	DomainValidationOptions []*DomainValidationOption `json:"domainValidationOptions,omitempty"`
 	// Specifies the algorithm of the public and private key pair that your certificate
 	// uses to encrypt data. RSA is the default key algorithm for ACM certificates.
@@ -84,6 +85,7 @@ type CertificateSpec struct {
 	// must match the algorithm family of the CA's secret key.
 	//
 	// Default: RSA_2048
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	KeyAlgorithm *string `json:"keyAlgorithm,omitempty"`
 	// Currently, you can use this parameter to specify whether to add the certificate
 	// to a certificate transparency log. Certificate transparency makes it possible

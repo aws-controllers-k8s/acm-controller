@@ -85,6 +85,9 @@ resources:
         is_immutable: true
       KeyAlgorithm:
         late_initialize: {}
+        is_immutable: true
+        compare:
+          is_ignored: true
       Options:
         late_initialize: {}
       # NOTE(jaypipes): The Create operation (RequestCertificate) has a
@@ -102,6 +105,10 @@ resources:
         from:
           operation: DescribeCertificate
           path: Certificate.DomainValidationOptions
+      DomainValidationOptions:
+        is_immutable: true
+        compare:
+          is_ignored: true
       ExtendedKeyUsages:
         is_read_only: true
         from:

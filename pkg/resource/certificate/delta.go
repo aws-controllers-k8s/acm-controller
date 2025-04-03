@@ -67,20 +67,6 @@ func newResourceDelta(
 			delta.Add("Spec.DomainName", a.ko.Spec.DomainName, b.ko.Spec.DomainName)
 		}
 	}
-	if len(a.ko.Spec.DomainValidationOptions) != len(b.ko.Spec.DomainValidationOptions) {
-		delta.Add("Spec.DomainValidationOptions", a.ko.Spec.DomainValidationOptions, b.ko.Spec.DomainValidationOptions)
-	} else if len(a.ko.Spec.DomainValidationOptions) > 0 {
-		if !reflect.DeepEqual(a.ko.Spec.DomainValidationOptions, b.ko.Spec.DomainValidationOptions) {
-			delta.Add("Spec.DomainValidationOptions", a.ko.Spec.DomainValidationOptions, b.ko.Spec.DomainValidationOptions)
-		}
-	}
-	if ackcompare.HasNilDifference(a.ko.Spec.KeyAlgorithm, b.ko.Spec.KeyAlgorithm) {
-		delta.Add("Spec.KeyAlgorithm", a.ko.Spec.KeyAlgorithm, b.ko.Spec.KeyAlgorithm)
-	} else if a.ko.Spec.KeyAlgorithm != nil && b.ko.Spec.KeyAlgorithm != nil {
-		if *a.ko.Spec.KeyAlgorithm != *b.ko.Spec.KeyAlgorithm {
-			delta.Add("Spec.KeyAlgorithm", a.ko.Spec.KeyAlgorithm, b.ko.Spec.KeyAlgorithm)
-		}
-	}
 	if ackcompare.HasNilDifference(a.ko.Spec.Options, b.ko.Spec.Options) {
 		delta.Add("Spec.Options", a.ko.Spec.Options, b.ko.Spec.Options)
 	} else if a.ko.Spec.Options != nil && b.ko.Spec.Options != nil {
