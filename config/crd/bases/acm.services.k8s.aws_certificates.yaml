@@ -152,6 +152,9 @@ spec:
                       type: string
                   type: object
                 type: array
+                x-kubernetes-validations:
+                - message: Value is immutable once set
+                  rule: self == oldSelf
               keyAlgorithm:
                 description: |-
                   Specifies the algorithm of the public and private key pair that your certificate
@@ -181,6 +184,9 @@ spec:
 
                   Default: RSA_2048
                 type: string
+                x-kubernetes-validations:
+                - message: Value is immutable once set
+                  rule: self == oldSelf
               options:
                 description: |-
                   Currently, you can use this parameter to specify whether to add the certificate
