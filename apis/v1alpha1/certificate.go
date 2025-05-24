@@ -39,6 +39,8 @@ type CertificateSpec struct {
 	// user guide. The ARN must have the following form:
 	//
 	// arn:aws:acm-pca:region:account:certificate-authority/12345678-1234-1234-1234-123456789012
+	//
+	// Regex Pattern: `^arn:[\w+=/,.@-]+:acm-pca:[\w+=/,.@-]*:[0-9]+:[\w+=,.@-]+(/[\w+=,.@-]+)*$`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	CertificateAuthorityARN *string                                  `json:"certificateAuthorityARN,omitempty"`
 	CertificateAuthorityRef *ackv1alpha1.AWSResourceReferenceWrapper `json:"certificateAuthorityRef,omitempty"`
@@ -54,6 +56,8 @@ type CertificateSpec struct {
 	// cannot exceed 64 octets (characters), including periods. To add a longer
 	// domain name, specify it in the Subject Alternative Name field, which supports
 	// names up to 253 octets in length.
+	//
+	// Regex Pattern: `^(\*\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$`
 	DomainName *string `json:"domainName,omitempty"`
 	// The domain name that you want ACM to use to send you emails so that you can
 	// validate domain ownership.
