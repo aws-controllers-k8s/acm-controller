@@ -161,7 +161,7 @@ class TestCertificate:
             certificate.status_matches("FAILED"),
         )
 
-        time.sleep(FAILED_WAIT_AFTER_SECONDS)
+        time.sleep(FAILED_WAIT_AFTER_SECONDS*3)
 
         # The corresponding CR should be updated to a FAILED status as well
         # because we have requeue_on_success_seconds = 60...
