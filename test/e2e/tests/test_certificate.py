@@ -267,6 +267,12 @@ class TestCertificate:
         }
         k8s.patch_custom_resource(ref, updates)
         time.sleep(10)
+        assert k8s.wait_on_condition(
+            ref,
+            condition.CONDITION_TYPE_READY,
+            'False',
+            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
+        )
         condition.assert_terminal(ref)
 
         updates = {
