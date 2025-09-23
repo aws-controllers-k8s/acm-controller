@@ -1,3 +1,3 @@
-acktest @ git+https://github.com/aws-controllers-k8s/test-infra.git@5a09bbdb961ea14a65b15b63769134125023ac61
+acktest @ git+https://github.com/gustavodiaz7722/ack-test-infra.git@075991b980ffbc9177f0427270be707359240f89
 
 cryptography == 42.0.8

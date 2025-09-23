@@ -37,7 +37,7 @@ CREATE_WAIT_AFTER_SECONDS = 65
 FAILED_WAIT_AFTER_SECONDS = 60
 DELETE_WAIT_AFTER_SECONDS = 30
 
-# Time we wait for the certificate to get to ACK.ResourceSynced=True
+# Time we wait for the certificate to get to Ready=True
 MAX_WAIT_FOR_SYNCED_MINUTES = 1
 
 
@@ -148,7 +148,7 @@ class TestCertificate:
         # Wait for the resource to get synced
         assert k8s.wait_on_condition(
             ref,
-            "ACK.ResourceSynced",
+            "Ready",
             "True",
             wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
         )
@@ -248,7 +248,7 @@ class TestCertificate:
         (ref, cr) = certificate_import
         assert k8s.wait_on_condition(
             ref,
-            condition.CONDITION_TYPE_RESOURCE_SYNCED,
+            condition.CONDITION_TYPE_READY,
             "True",
             wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
         )
