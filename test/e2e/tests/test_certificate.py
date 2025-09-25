@@ -37,7 +37,7 @@ CREATE_WAIT_AFTER_SECONDS = 65
 FAILED_WAIT_AFTER_SECONDS = 60
 DELETE_WAIT_AFTER_SECONDS = 30
 
-# Time we wait for the certificate to get to ACK.ResourceSynced=True
+# Time we wait for the certificate to get to Ready=True
 MAX_WAIT_FOR_SYNCED_MINUTES = 1
 
 
@@ -148,7 +148,7 @@ class TestCertificate:
         # Wait for the resource to get synced
         assert k8s.wait_on_condition(
             ref,
-            "ACK.ResourceSynced",
+            "Ready",
             "True",
             wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
         )
@@ -233,13 +233,7 @@ class TestCertificate:
         (ref, cr) = certificate_public
         assert 'status' in cr
 
-        cond = k8s.get_resource_condition(ref, condition.CONDITION_TYPE_TERMINAL)
-        assert cond is not None
-        assert cond == {
-            'message': 'Too many domain validation errors',
-            'status': 'True',
-            'type': condition.CONDITION_TYPE_TERMINAL,
-        }
+        condition.assert_terminal(ref, "Too many domain validation errors")
 
     def test_import_certificate(
             self,
@@ -248,11 +242,10 @@ class TestCertificate:
         (ref, cr) = certificate_import
         assert k8s.wait_on_condition(
             ref,
-            condition.CONDITION_TYPE_RESOURCE_SYNCED,
+            condition.CONDITION_TYPE_READY,
             "True",
             wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
         )
-        assert k8s.get_resource_condition(ref, condition.CONDITION_TYPE_TERMINAL) is None
 
         assert 'status' in cr
         status = cr['status']
@@ -276,10 +269,11 @@ class TestCertificate:
         time.sleep(10)
         assert k8s.wait_on_condition(
             ref,
-            condition.CONDITION_TYPE_TERMINAL,
-            'True',
+            condition.CONDITION_TYPE_READY,
+            'False',
             wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
         )
+        condition.assert_terminal(ref)
 
         updates = {
             'spec': {
@@ -290,7 +284,7 @@ class TestCertificate:
         }
         k8s.patch_custom_resource(ref, updates)
         time.sleep(10)
-        assert k8s.get_resource_condition(ref, condition.CONDITION_TYPE_TERMINAL) is None
+        condition.assert_ready(ref)
 
         k8s.delete_custom_resource(ref)
         time.sleep(DELETE_WAIT_AFTER_SECONDS)
