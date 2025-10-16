@@ -134,6 +134,13 @@ func (rm *resourceManager) sdkFind(
 		return nil, err
 	}
 
+	// Capture the current IssuedAt before it gets updated from AWS response
+	// This will be used later to detect if the certificate was renewed
+	var oldIssuedAt *metav1.Time
+	if ko.Status.IssuedAt != nil {
+		oldIssuedAt = ko.Status.IssuedAt.DeepCopy()
+	}
+
 	if ko.Status.ACKResourceMetadata == nil {
 		ko.Status.ACKResourceMetadata = &ackv1alpha1.ResourceMetadata{}
 	}
@@ -348,6 +355,33 @@ func (rm *resourceManager) sdkFind(
 	}
 
 	rm.setStatusDefaults(ko)
+	// Export certificate if issued and IssuedAt timestamp changed
+	if resp.Certificate.Status == "ISSUED" {
+		if ko.Spec.ExportTo != nil && ko.Spec.ExportPassphrase != nil {
+			oldIssuedAtStr := "nil"
+			timeFormat := "2006-01-02T15:04:05Z07:00"
+			if oldIssuedAt != nil {
+				oldIssuedAtStr = oldIssuedAt.Format(timeFormat)
+			}
+			newIssuedAtStr := "nil"
+			if ko.Status.IssuedAt != nil {
+				newIssuedAtStr = ko.Status.IssuedAt.Format(timeFormat)
+			}
+
+			// Check if IssuedAt changed (certificate was renewed or newly issued)
+			// Use string comparison to avoid metav1.Time precision issues
+			issuedAtChanged := (oldIssuedAtStr != newIssuedAtStr)
+
+			if issuedAtChanged {
+				rlog.Info("Exporting certificate due to IssuedAt change")
+				if err = rm.maybeExportCertificate(ctx, &resource{ko}); err != nil {
+					rlog.Info("failed to export certificate", "error", err)
+				} else {
+					rlog.Info("Certificate export completed successfully")
+				}
+			}
+		}
+	}
 	return &resource{ko}, nil
 }
 
@@ -397,12 +431,34 @@ func (rm *resourceManager) sdkCreate(
 	if err = validatePublicValidationOptions(desired); err != nil {
 		return nil, ackerr.NewTerminalError(err)
 	}
+	if err = validateExportCertificateOptions(desired); err != nil {
+		return nil, ackerr.NewTerminalError(err)
+	}
 
 	input, err := rm.newCreateRequestPayload(ctx, desired)
 	if err != nil {
 		return nil, err
 	}
+	// We only support DNS-based validation, because
+	// certificate renewal is not really automatable when email verification
+	// is used.
+	//
+	// See discussion here:
+	// https://docs.aws.amazon.com/acm/latest/userguide/email-validation.html
+	//
+	// Unfortunately, because fields in the "ignore" configuration list are
+	// now deleted from the aws-sdk-go private/model/api.Shape object,
+	// setting `override_values` does not work.
+
 	input.ValidationMethod = "DNS"
+
+	if desired.ko.Spec.ExportTo != nil {
+		options := input.Options
+		if options == nil {
+			options = &svcsdktypes.CertificateOptions{}
+		}
+		options.Export = "ENABLED"
+	}
 
 	var resp *svcsdk.RequestCertificateOutput
 	_ = resp

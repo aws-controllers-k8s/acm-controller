@@ -8,3 +8,6 @@
 	if err = validatePublicValidationOptions(desired); err != nil {
 		return nil, ackerr.NewTerminalError(err)
 	}
+    if err = validateExportCertificateOptions(desired); err != nil {
+        return nil, ackerr.NewTerminalError(err)
+    }
