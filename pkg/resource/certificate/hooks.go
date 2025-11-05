@@ -191,7 +191,7 @@ func (rm *resourceManager) maybeExportCertificate(
 	if resp.CertificateChain != nil && *resp.CertificateChain != "" {
 		certificateChain = certificateChain + *resp.CertificateChain
 	}
-	if err := rm.rr.WriteToSecret(ctx, certificateChain, secretReference.Namespace, secretReference.Name, r.ko.Spec.ExportTo.Key); err != nil {
+	if err := rm.rr.WriteToSecret(ctx, certificateChain, secretReference.Namespace, secretReference.Name, "tls.crt"); err != nil {
 		return err
 	}
 
