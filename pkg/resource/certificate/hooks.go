@@ -21,15 +21,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/aws-controllers-k8s/acm-controller/pkg/tags"
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
+	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/acm"
-	"github.com/aws/smithy-go"
 	pkcs8 "github.com/youmark/pkcs8"
-	k8scorev1 "k8s.io/api/core/v1"
-
-	"github.com/aws-controllers-k8s/acm-controller/pkg/tags"
 )
 
 const (
@@ -139,9 +137,6 @@ func validateExportCertificateOptions(
 	r *resource,
 ) error {
 	if r.ko.Spec.ExportTo != nil {
-		if r.ko.Spec.ExportTo.Name == "" {
-			return ackerr.NewTerminalError(errors.New("exportTo requires a name field that refers to a Secret"))
-		}
 		if r.ko.Spec.ExportPassphrase == nil {
 			return ackerr.NewTerminalError(errors.New("exporting a certificate requires the ExportPassphrase field"))
 		}
@@ -163,14 +158,6 @@ func (rm *resourceManager) maybeExportCertificate(
 		return ackerr.NewTerminalError(errors.New("could not resolve exportPassphrase secret reference"))
 	}
 
-	secretReference := new(k8scorev1.SecretReference)
-	secretReference.Name = r.ko.Spec.ExportTo.Name
-	if r.ko.Spec.ExportTo.Namespace != "" {
-		secretReference.Namespace = r.ko.Spec.ExportTo.Namespace
-	} else {
-		secretReference.Namespace = r.ko.Namespace
-	}
-
 	input := &svcsdk.ExportCertificateInput{}
 	if r.ko.Status.ACKResourceMetadata != nil && r.ko.Status.ACKResourceMetadata.ARN != nil {
 		input.CertificateArn = (*string)(r.ko.Status.ACKResourceMetadata.ARN)
@@ -180,10 +167,6 @@ func (rm *resourceManager) maybeExportCertificate(
 	resp, err := rm.sdkapi.ExportCertificate(ctx, input)
 	rm.metrics.RecordAPICall("READ_ONE", "ExportCertificate", err)
 	if err != nil {
-		var awsErr smithy.APIError
-		if errors.As(err, &awsErr) && awsErr.ErrorCode() == "ResourceNotFoundException" {
-			return ackerr.NotFound
-		}
 		return err
 	}
 
@@ -191,8 +174,15 @@ func (rm *resourceManager) maybeExportCertificate(
 	if resp.CertificateChain != nil && *resp.CertificateChain != "" {
 		certificateChain = certificateChain + *resp.CertificateChain
 	}
-	if err := rm.rr.WriteToSecret(ctx, certificateChain, secretReference.Namespace, secretReference.Name, "tls.crt"); err != nil {
-		return err
+
+	if r.ko.Spec.ExportTo.Namespace != "" {
+		if err := rm.rr.WriteToSecret(ctx, certificateChain, r.ko.Spec.ExportTo.Namespace, r.ko.Spec.ExportTo.Name, "tls.crt"); err != nil {
+			return err
+		}
+	} else {
+		if err := rm.rr.WriteToSecret(ctx, certificateChain, r.ko.Namespace, r.ko.Spec.ExportTo.Name, "tls.crt"); err != nil {
+			return err
+		}
 	}
 
 	decryptedKey, err := DecryptPrivateKey([]byte(*resp.PrivateKey), []byte(passphrase))
@@ -200,8 +190,14 @@ func (rm *resourceManager) maybeExportCertificate(
 		return err
 	}
 
-	if err := rm.rr.WriteToSecret(ctx, string(decryptedKey), secretReference.Namespace, secretReference.Name, "tls.key"); err != nil {
-		return err
+	if r.ko.Spec.ExportTo.Namespace != "" {
+		if err := rm.rr.WriteToSecret(ctx, string(decryptedKey), r.ko.Spec.ExportTo.Namespace, r.ko.Spec.ExportTo.Name, "tls.key"); err != nil {
+			return err
+		}
+	} else {
+		if err := rm.rr.WriteToSecret(ctx, string(decryptedKey), r.ko.Namespace, r.ko.Spec.ExportTo.Name, "tls.key"); err != nil {
+			return err
+		}
 	}
 
 	// No need to update secret annotations since we're now tracking IssuedAt changes
@@ -229,4 +225,14 @@ func DecryptPrivateKey(encryptedPEM, passphrase []byte) ([]byte, error) {
 		Bytes: derBytes,
 	})
 	return pemBytes, err
+}
+
+func compareCertificateIssuedAt(
+	delta *ackcompare.Delta,
+	a *resource,
+	b *resource,
+) {
+	if a.ko.Status.IssuedAt != b.ko.Status.IssuedAt {
+		delta.Add("Status.IssuedAt", a.ko.Status.IssuedAt, b.ko.Status.IssuedAt)
+	}
 }
