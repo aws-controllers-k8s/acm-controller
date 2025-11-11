@@ -176,11 +176,11 @@ func (rm *resourceManager) maybeExportCertificate(
 	}
 
 	if r.ko.Spec.ExportTo.Namespace != "" {
-		if err := rm.rr.WriteToSecret(ctx, certificateChain, r.ko.Spec.ExportTo.Namespace, r.ko.Spec.ExportTo.Name, "tls.crt"); err != nil {
+		if err := rm.rr.WriteToSecret(ctx, certificateChain, r.ko.Spec.ExportTo.Namespace, r.ko.Spec.ExportTo.Name, r.ko.Spec.ExportTo.Key); err != nil {
 			return err
 		}
 	} else {
-		if err := rm.rr.WriteToSecret(ctx, certificateChain, r.ko.Namespace, r.ko.Spec.ExportTo.Name, "tls.crt"); err != nil {
+		if err := rm.rr.WriteToSecret(ctx, certificateChain, r.ko.Namespace, r.ko.Spec.ExportTo.Name, r.ko.Spec.ExportTo.Key); err != nil {
 			return err
 		}
 	}

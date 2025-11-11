@@ -84,6 +84,7 @@ spec:
   exportTo:
     namespace: demo-app
     name: exported-cert-secret
+    key: tls.crt
 ...
 ```
 

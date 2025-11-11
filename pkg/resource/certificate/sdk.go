@@ -418,7 +418,8 @@ func (rm *resourceManager) sdkCreate(
 
 	input.ValidationMethod = "DNS"
 
-	if desired.ko.Spec.ExportTo != nil {
+	// NOTE: exportPreference can ONLY be set for public certificates
+	if desired.ko.Spec.ExportTo != nil && desired.ko.Spec.CertificateAuthorityARN == nil && desired.ko.Spec.CertificateAuthorityARN == nil {
 		options := input.Options
 		if options == nil {
 			options = &svcsdktypes.CertificateOptions{}
