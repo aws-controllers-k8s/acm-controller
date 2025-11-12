@@ -1,4 +1,15 @@
-	if delta.DifferentAt("Spec.Tags") {
+    if delta.DifferentAt("Spec.Status.IssuedAt") {
+        rlog.Info("Exporting certificate due to IssuedAt change")
+        if err = rm.maybeExportCertificate(ctx, &resource{latest.ko}); err != nil {
+            rlog.Info("failed to export certificate", "error", err)
+			return nil, err
+        } else {
+            rlog.Info("Certificate export completed successfully")
+        }
+		return desired, nil
+    }
+
+    if delta.DifferentAt("Spec.Tags") {
 		if err := syncTags(
 			ctx, rm.sdkapi, rm.metrics,
 			string(*desired.ko.Status.ACKResourceMetadata.ARN),
