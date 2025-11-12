@@ -12,7 +12,7 @@
 input.ValidationMethod = "DNS"
 
 // NOTE: exportPreference can ONLY be set for public certificates
-if desired.ko.Spec.ExportTo != nil && desired.ko.Spec.CertificateAuthorityARN == nil && desired.ko.Spec.CertificateAuthorityARN == nil {
+if desired.ko.Spec.ExportTo != nil && desired.ko.Spec.CertificateAuthorityARN == nil && desired.ko.Spec.CertificateAuthorityRef == nil {
     options := input.Options
     if options == nil {
         options = &svcsdktypes.CertificateOptions{}
