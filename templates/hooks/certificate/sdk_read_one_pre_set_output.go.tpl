@@ -42,3 +42,10 @@
 	if err != nil {
 		return nil, err
 	}
+
+    // Capture the current IssuedAt before it gets updated from AWS response
+    // This will be used later to detect if the certificate was renewed
+    var oldIssuedAt *metav1.Time
+    if ko.Status.IssuedAt != nil {
+    oldIssuedAt = ko.Status.IssuedAt.DeepCopy()
+    }

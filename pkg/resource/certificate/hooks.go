@@ -15,15 +15,16 @@ package certificate
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/aws-controllers-k8s/acm-controller/pkg/tags"
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
-	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/acm"
@@ -185,7 +186,7 @@ func (rm *resourceManager) maybeExportCertificate(
 		}
 	}
 
-	decryptedKey, err := DecryptPrivateKey([]byte(*resp.PrivateKey), []byte(passphrase))
+	decryptedKey, err := DecryptPrivateKey([]byte(*resp.PrivateKey), []byte(passphrase), *r.ko.Spec.KeyAlgorithm)
 	if err != nil {
 		return err
 	}
@@ -205,7 +206,7 @@ func (rm *resourceManager) maybeExportCertificate(
 	return nil
 }
 
-func DecryptPrivateKey(encryptedPEM, passphrase []byte) ([]byte, error) {
+func DecryptPrivateKey(encryptedPEM, passphrase []byte, keyAlgorithm string) ([]byte, error) {
 	pemBlock, _ := pem.Decode(encryptedPEM)
 	if pemBlock == nil {
 		return nil, errors.New("failed to decode PEM block: no PEM data found")
@@ -215,24 +216,28 @@ func DecryptPrivateKey(encryptedPEM, passphrase []byte) ([]byte, error) {
 		return nil, errors.New("failed to decrypt PEM block")
 	}
 
-	derBytes, err := x509.MarshalPKCS8PrivateKey(privateKey.(*rsa.PrivateKey))
-	if err != nil {
-		return nil, errors.New("failed to marshal PEM block")
-	}
+	// NOTE: Algorithms supported for an ACM certificate request include: RSA_2048, EC_prime256v1, EC_secp384r1
+	if strings.Contains(keyAlgorithm, "RSA") {
+		derBytes, err := x509.MarshalPKCS8PrivateKey(privateKey.(*rsa.PrivateKey))
+		if err != nil {
+			return nil, errors.New("failed to marshal PEM block")
+		}
 
-	pemBytes := pem.EncodeToMemory(&pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: derBytes,
-	})
-	return pemBytes, err
-}
+		pemBytes := pem.EncodeToMemory(&pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: derBytes,
+		})
+		return pemBytes, err
+	} else {
+		derBytes, err := x509.MarshalPKCS8PrivateKey(privateKey.(*ecdsa.PrivateKey))
+		if err != nil {
+			return nil, errors.New("failed to marshal PEM block")
+		}
 
-func compareCertificateIssuedAt(
-	delta *ackcompare.Delta,
-	a *resource,
-	b *resource,
-) {
-	if a.ko.Status.IssuedAt != b.ko.Status.IssuedAt {
-		delta.Add("Status.IssuedAt", a.ko.Status.IssuedAt, b.ko.Status.IssuedAt)
+		pemBytes := pem.EncodeToMemory(&pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: derBytes,
+		})
+		return pemBytes, err
 	}
 }

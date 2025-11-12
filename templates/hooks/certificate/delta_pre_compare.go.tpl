@@ -1,1 +1,0 @@
-compareCertificateIssuedAt(delta, a, b)

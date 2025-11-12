@@ -16,16 +16,15 @@
 		}
 		return desired, nil
 	}
-	// Export the exportable certificate again if it has been renewed
-	if delta.DifferentAt("Status.IssuedAt") {
-        if latest.ko.Spec.ExportTo != nil && latest.ko.Spec.ExportPassphrase != nil {
-            rlog.Info("Exporting certificate due to IssuedAt change")
-            if err = rm.maybeExportCertificate(ctx, &resource{latest.ko}); err != nil {
-                rlog.Info("failed to export certificate", "error", err)
-                return nil, err
-            } else {
-                rlog.Info("Certificate export completed successfully")
-            }
-        }
+
+	// Export the exportable certificate if IssuedAt timestamp changed
+	if delta.DifferentAt("Status.IssuedAt") && latest.ko.Spec.ExportTo != nil && latest.ko.Spec.ExportPassphrase != nil {
+		rlog.Info("Exporting certificate due to IssuedAt change")
+		if err = rm.maybeExportCertificate(ctx, &resource{latest.ko}); err != nil {
+			rlog.Info("failed to export certificate", "error", err)
+			return nil, err
+		} else {
+			rlog.Info("Certificate export completed successfully")
+		}
         return desired, nil
     }
