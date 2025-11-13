@@ -568,6 +568,7 @@ func (rm *resourceManager) sdkUpdate(
 	ko := desired.ko.DeepCopy()
 
 	rm.setStatusDefaults(ko)
+	ko.Status.IssuedAt = latest.ko.Status.IssuedAt
 	return &resource{ko}, nil
 }
 

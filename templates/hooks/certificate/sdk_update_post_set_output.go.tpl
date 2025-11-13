@@ -1,0 +1,1 @@
+ko.Status.IssuedAt = latest.ko.Status.IssuedAt
