@@ -248,25 +248,12 @@ func compareCertificateIssuedAt(
 	a *resource,
 	b *resource,
 ) {
-	if a.ko.Status.IssuedAt != b.ko.Status.IssuedAt {
-		if b.ko.Status.Status != nil && *b.ko.Status.Status == "ISSUED" {
-			oldIssuedAtStr := "nil"
-			timeFormat := "2006-01-02T15:04:05Z07:00"
-			if a.ko.Status.IssuedAt != nil {
-				oldIssuedAtStr = a.ko.Status.IssuedAt.Format(timeFormat)
-			}
-			newIssuedAtStr := "nil"
-			if b.ko.Status.IssuedAt != nil {
-				newIssuedAtStr = b.ko.Status.IssuedAt.Format(timeFormat)
-			}
-
-			// Check if IssuedAt changed (certificate was renewed or newly issued)
-			// Use string comparison to avoid metav1.Time precision issues
-			if oldIssuedAtStr != newIssuedAtStr {
-				// NOTE: ack runtime ONLY goes into update if delta key starts with "Spec"
-				// https://github.com/aws-controllers-k8s/runtime/blob/main/pkg/runtime/reconciler.go#L894-L903
-				delta.Add("Spec.Status.IssuedAt", a.ko.Status.IssuedAt, b.ko.Status.IssuedAt)
-			}
-		}
+	// NOTE: first time the certificate is issued
+	if a.ko.Status.IssuedAt == nil && b.ko.Status.Status != nil && *b.ko.Status.Status == "ISSUED" {
+		delta.Add("Spec.Status.IssuedAt", a.ko.Status.IssuedAt, b.ko.Status.IssuedAt)
+	}
+	// NOTE: when the certificate is renewed
+	if a.ko.Status.IssuedAt != nil && b.ko.Status.IssuedAt != nil && !a.ko.Status.IssuedAt.Equal(b.ko.Status.IssuedAt) {
+		delta.Add("Spec.Status.IssuedAt", a.ko.Status.IssuedAt, b.ko.Status.IssuedAt)
 	}
 }
