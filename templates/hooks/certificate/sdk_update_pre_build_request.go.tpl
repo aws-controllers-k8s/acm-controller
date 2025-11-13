@@ -1,8 +1,18 @@
     if delta.DifferentAt("Spec.Status.IssuedAt") {
         rlog.Info("Exporting certificate due to IssuedAt change")
-        if err = rm.maybeExportCertificate(ctx, &resource{latest.ko}); err != nil {
+        if err = rm.exportCertificate(ctx, &resource{latest.ko}); err != nil {
             rlog.Info("failed to export certificate", "error", err)
 			return nil, err
+        } else {
+            rlog.Info("Certificate export completed successfully")
+        }
+    }
+
+    if delta.DifferentAt("Spec.Status.Serial") {
+        rlog.Info("Exporting certificate due to Serial change")
+        if err = rm.exportCertificate(ctx, &resource{latest.ko}); err != nil {
+            rlog.Info("failed to export certificate", "error", err)
+            return nil, err
         } else {
             rlog.Info("Certificate export completed successfully")
         }

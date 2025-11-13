@@ -146,7 +146,7 @@ func validateExportCertificateOptions(
 	return nil
 }
 
-func (rm *resourceManager) maybeExportCertificate(
+func (rm *resourceManager) exportCertificate(
 	ctx context.Context,
 	r *resource,
 ) error {
