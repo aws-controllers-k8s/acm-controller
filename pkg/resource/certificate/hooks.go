@@ -255,9 +255,9 @@ func compareCertificateIssuedAt(
 		delta.Add("Spec.Status.IssuedAt", a.ko.Status.IssuedAt, b.ko.Status.IssuedAt)
 	}
 	// NOTE: when the certificate is renewed
-	if a.ko.Status.IssuedAt != nil && b.ko.Status.IssuedAt != nil && !a.ko.Status.IssuedAt.Equal(b.ko.Status.IssuedAt) {
+	if a.ko.Status.Serial != nil && b.ko.Status.Serial != nil && *a.ko.Status.Serial != *b.ko.Status.Serial {
 		// NOTE: ack runtime ONLY goes into update if delta key starts with "Spec"
 		// https://github.com/aws-controllers-k8s/runtime/blob/main/pkg/runtime/reconciler.go#L894-L903
-		delta.Add("Spec.Status.IssuedAt", a.ko.Status.IssuedAt, b.ko.Status.IssuedAt)
+		delta.Add("Spec.Status.Serial", a.ko.Status.Serial, b.ko.Status.Serial)
 	}
 }
