@@ -1,4 +1,38 @@
-	if delta.DifferentAt("Spec.Tags") {
+    if delta.DifferentAt("Spec.Status.IssuedAt") {
+        rlog.Info("Exporting certificate due to IssuedAt change")
+        if err = rm.exportCertificate(ctx, &resource{latest.ko}); err != nil {
+            rlog.Info("failed to export certificate", "error", err)
+			return nil, err
+        } else {
+            rlog.Info("Certificate export completed successfully")
+        }
+        ko := desired.ko.DeepCopy()
+
+        rm.setStatusDefaults(ko)
+        ko.Status.IssuedAt = latest.ko.Status.IssuedAt
+        ko.Status.Status = latest.ko.Status.Status
+        ko.Status.Serial = latest.ko.Status.Serial
+        return &resource{ko}, nil
+    }
+
+    if delta.DifferentAt("Spec.Status.Serial") {
+        rlog.Info("Exporting certificate due to Serial change")
+        if err = rm.exportCertificate(ctx, &resource{latest.ko}); err != nil {
+            rlog.Info("failed to export certificate", "error", err)
+            return nil, err
+        } else {
+            rlog.Info("Certificate export completed successfully")
+        }
+        ko := desired.ko.DeepCopy()
+
+        rm.setStatusDefaults(ko)
+        ko.Status.IssuedAt = latest.ko.Status.IssuedAt
+        ko.Status.Status = latest.ko.Status.Status
+        ko.Status.Serial = latest.ko.Status.Serial
+        return &resource{ko}, nil
+    }
+
+    if delta.DifferentAt("Spec.Tags") {
 		if err := syncTags(
 			ctx, rm.sdkapi, rm.metrics,
 			string(*desired.ko.Status.ACKResourceMetadata.ARN),
