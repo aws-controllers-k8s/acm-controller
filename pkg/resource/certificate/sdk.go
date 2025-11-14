@@ -530,6 +530,7 @@ func (rm *resourceManager) sdkUpdate(
 		} else {
 			rlog.Info("Certificate export completed successfully")
 		}
+		return desired, nil
 	}
 
 	if delta.DifferentAt("Spec.Status.Serial") {
@@ -540,6 +541,7 @@ func (rm *resourceManager) sdkUpdate(
 		} else {
 			rlog.Info("Certificate export completed successfully")
 		}
+		return desired, nil
 	}
 
 	if delta.DifferentAt("Spec.Tags") {
