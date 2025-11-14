@@ -248,16 +248,18 @@ func compareCertificateIssuedAt(
 	a *resource,
 	b *resource,
 ) {
-	// NOTE: first time the certificate is issued
-	if a.ko.Status.IssuedAt == nil && b.ko.Status.Status != nil && *b.ko.Status.Status == "ISSUED" {
-		// NOTE: ack runtime ONLY goes into update if delta key starts with "Spec"
-		// https://github.com/aws-controllers-k8s/runtime/blob/main/pkg/runtime/reconciler.go#L894-L903
-		delta.Add("Spec.Status.IssuedAt", a.ko.Status.IssuedAt, b.ko.Status.IssuedAt)
-	}
-	// NOTE: when the certificate is renewed
-	if a.ko.Status.Serial != nil && b.ko.Status.Serial != nil && *a.ko.Status.Serial != *b.ko.Status.Serial {
-		// NOTE: ack runtime ONLY goes into update if delta key starts with "Spec"
-		// https://github.com/aws-controllers-k8s/runtime/blob/main/pkg/runtime/reconciler.go#L894-L903
-		delta.Add("Spec.Status.Serial", a.ko.Status.Serial, b.ko.Status.Serial)
+	if a.ko.Spec.ExportTo != nil {
+		// NOTE: first time the certificate is issued
+		if a.ko.Status.IssuedAt == nil && b.ko.Status.Status != nil && *b.ko.Status.Status == "ISSUED" {
+			// NOTE: ack runtime ONLY goes into update if delta key starts with "Spec"
+			// https://github.com/aws-controllers-k8s/runtime/blob/main/pkg/runtime/reconciler.go#L894-L903
+			delta.Add("Spec.Status.IssuedAt", a.ko.Status.IssuedAt, b.ko.Status.IssuedAt)
+		}
+		// NOTE: when the certificate is renewed
+		if a.ko.Status.Serial != nil && b.ko.Status.Serial != nil && *a.ko.Status.Serial != *b.ko.Status.Serial {
+			// NOTE: ack runtime ONLY goes into update if delta key starts with "Spec"
+			// https://github.com/aws-controllers-k8s/runtime/blob/main/pkg/runtime/reconciler.go#L894-L903
+			delta.Add("Spec.Status.Serial", a.ko.Status.Serial, b.ko.Status.Serial)
+		}
 	}
 }
