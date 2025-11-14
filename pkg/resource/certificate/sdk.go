@@ -530,7 +530,13 @@ func (rm *resourceManager) sdkUpdate(
 		} else {
 			rlog.Info("Certificate export completed successfully")
 		}
-		return desired, nil
+		ko := desired.ko.DeepCopy()
+
+		rm.setStatusDefaults(ko)
+		ko.Status.IssuedAt = latest.ko.Status.IssuedAt
+		ko.Status.Status = latest.ko.Status.Status
+		ko.Status.Serial = latest.ko.Status.Serial
+		return &resource{ko}, nil
 	}
 
 	if delta.DifferentAt("Spec.Status.Serial") {
@@ -541,7 +547,13 @@ func (rm *resourceManager) sdkUpdate(
 		} else {
 			rlog.Info("Certificate export completed successfully")
 		}
-		return desired, nil
+		ko := desired.ko.DeepCopy()
+
+		rm.setStatusDefaults(ko)
+		ko.Status.IssuedAt = latest.ko.Status.IssuedAt
+		ko.Status.Status = latest.ko.Status.Status
+		ko.Status.Serial = latest.ko.Status.Serial
+		return &resource{ko}, nil
 	}
 
 	if delta.DifferentAt("Spec.Tags") {
