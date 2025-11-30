@@ -1,17 +1,9 @@
 ack_generate_info:
-<<<<<<< Updated upstream
-  build_date: "2025-11-30T00:23:39Z"
+  build_date: "2025-11-30T01:19:58Z"
   build_hash: 23c7074fa310ad1ccb38946775397c203b49f024
   go_version: go1.25.1
   version: 23c7074
 api_directory_checksum: 5dc0b682f154f3479809e330d2760ff9575e9bea
-=======
-  build_date: "2025-11-30T00:49:29Z"
-  build_hash: 23c7074fa310ad1ccb38946775397c203b49f024
-  go_version: go1.25.1
-  version: 23c7074
-api_directory_checksum: 3e7a69c0415ed45a0a26d12bd1498f965d70c69a
->>>>>>> Stashed changes
 api_version: v1alpha1
 aws_sdk_go_version: v1.32.6
 generator_config_info:
