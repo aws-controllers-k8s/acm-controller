@@ -397,9 +397,6 @@ func (rm *resourceManager) sdkCreate(
 	if err = validatePublicValidationOptions(desired); err != nil {
 		return nil, ackerr.NewTerminalError(err)
 	}
-	if err = validateExportCertificateOptions(desired); err != nil {
-		return nil, ackerr.NewTerminalError(err)
-	}
 
 	input, err := rm.newCreateRequestPayload(ctx, desired)
 	if err != nil {

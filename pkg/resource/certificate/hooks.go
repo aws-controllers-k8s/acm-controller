@@ -16,11 +16,13 @@ package certificate
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/aws-controllers-k8s/acm-controller/pkg/tags"
@@ -135,34 +137,41 @@ type importCertificateInput struct {
 	*svcsdk.ImportCertificateInput
 }
 
-func validateExportCertificateOptions(
-	r *resource,
-) error {
-	if r.ko.Spec.ExportTo != nil {
-		if r.ko.Spec.ExportPassphrase == nil {
-			return ackerr.NewTerminalError(errors.New("exporting a certificate requires the ExportPassphrase field"))
-		}
+// generateRandomString generates a cryptographically secure random string of a given length
+// using a specified character set.
+func generateRandomString(length int) (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?"
+	b := make([]byte, length)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return "", err
 	}
-	return nil
+
+	result := make([]byte, length)
+	charsetLen := len(charset)
+	for i := 0; i < length; i++ {
+		result[i] = charset[int(b[i])%charsetLen]
+	}
+
+	return string(result), nil
 }
 
 func (rm *resourceManager) exportCertificate(
 	ctx context.Context,
 	r *resource,
 ) error {
-	if r.ko.Spec.ExportTo == nil || r.ko.Spec.ExportPassphrase == nil {
+	if r.ko.Spec.ExportTo == nil {
 		return nil
-	}
-
-	// Get the passphrase from the secret reference
-	passphrase, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.ExportPassphrase)
-	if err != nil || passphrase == "" {
-		return ackerr.NewTerminalError(errors.New("could not resolve exportPassphrase secret reference"))
 	}
 
 	input := &svcsdk.ExportCertificateInput{}
 	if r.ko.Status.ACKResourceMetadata != nil && r.ko.Status.ACKResourceMetadata.ARN != nil {
 		input.CertificateArn = (*string)(r.ko.Status.ACKResourceMetadata.ARN)
+	}
+
+	passphraseLength := 8 // Desired length of the passphrase
+	passphrase, err := generateRandomString(passphraseLength)
+	if err != nil {
+		return ackerr.NewTerminalError(err)
 	}
 	input.Passphrase = []byte(passphrase)
 

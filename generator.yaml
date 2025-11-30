@@ -47,12 +47,6 @@ resources:
     reconcile:
       requeue_on_success_seconds: 60
     fields:
-      ExportPassphrase:
-        type: "bytes"
-        is_immutable: true
-        is_secret: true
-        compare:
-          is_ignored: true
       ExportTo:
         type: "bytes"
         is_immutable: true

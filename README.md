@@ -18,34 +18,6 @@ The ACK service controller for AWS Certificate Manager is free of charge. If you
 ### Kubernetes Secrets
 The ACK service controller for AWS Certificate Manager uses Kubernetes TLS Secrets to store the certificate chain and decrypted private key of [exportable public certificates](https://docs.aws.amazon.com/acm/latest/userguide/acm-exportable-certificates.html). Users are expected to create Secrets before creating Certificate resources. As these resources are created, the Secrets' `tls.crt` will be injected with the base64-encoded certificate and `tls.key` will be injected with the base64-encoded private key associated with the certificate. Users are responsible for deleting Secrets.
 
-#### Export Passphrase
-Before exporting an ACM exportable public certificate to a Kubernetes TLS Secret, users must specify a [passphrase](https://docs.aws.amazon.com/acm/latest/APIReference/API_ExportCertificate.html#API_ExportCertificate_RequestSyntax) using the `exportPassphrase` field of the Certificate resource, as shown below.
-
-```
-apiVersion: v1
-kind: Secret
-metadata:
-  name: passphrase-secret
-  namespace: demo-app
-data:
-  passphrase: bXlzZWNyZXRwYXNzcGhyYXNl
----
-apiVersion: acm.services.k8s.aws/v1alpha1
-kind: Certificate
-metadata:
-  name: exportable-public-cert
-  namespace: demo-app
-spec:
-  domainName: my.domain.com
-  options:
-    certificateTransparencyLoggingPreference: ENABLED
-  exportPassphrase:
-    name: passphrase-secret
-    namespace: demo-app
-    key: passphrase
-...
-```
-
 #### Export Certificate
 To export an ACM exportable public certificate to a Kubernetes TLS Secret, users must specify the namespace and the name of the Secret using the `exportTo` field of the Certificate resource, as shown below.
 
@@ -59,14 +31,6 @@ metadata:
 data:
   tls.crt: ""
   tls.key: ""
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: passphrase-secret
-  namespace: demo-app
-data:
-  passphrase: bXlzZWNyZXRwYXNzcGhyYXNl
 ---
 apiVersion: acm.services.k8s.aws/v1alpha1
 kind: Certificate
