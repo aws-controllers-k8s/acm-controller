@@ -171,7 +171,7 @@ func (rm *resourceManager) exportCertificate(
 	passphraseLength := 8 // Desired length of the passphrase
 	passphrase, err := generateRandomString(passphraseLength)
 	if err != nil {
-		return ackerr.NewTerminalError(err)
+		return err
 	}
 	input.Passphrase = []byte(passphrase)
 
