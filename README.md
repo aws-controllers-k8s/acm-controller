@@ -43,10 +43,6 @@ spec:
   domainName: my.domain.com
   options:
     certificateTransparencyLoggingPreference: ENABLED
-  exportPassphrase:
-    name: passphrase-secret
-    namespace: demo-app
-    key: passphrase
   exportTo:
     namespace: demo-app
     name: exported-cert-secret
