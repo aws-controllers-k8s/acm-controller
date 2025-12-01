@@ -15,15 +15,23 @@ package certificate
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
+	"strings"
 
+	"github.com/aws-controllers-k8s/acm-controller/pkg/tags"
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
+	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/acm"
-
-	"github.com/aws-controllers-k8s/acm-controller/pkg/tags"
+	pkcs8 "github.com/youmark/pkcs8"
 )
 
 const (
@@ -127,4 +135,140 @@ type importCertificateInput struct {
 	CertificateChain *ackv1alpha1.SecretKeyReference
 	PrivateKey       *ackv1alpha1.SecretKeyReference
 	*svcsdk.ImportCertificateInput
+}
+
+// generateRandomString generates a cryptographically secure random string of a given length
+// using a specified character set.
+func generateRandomString(length int) (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?"
+	b := make([]byte, length)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return "", err
+	}
+
+	result := make([]byte, length)
+	charsetLen := len(charset)
+	for i := 0; i < length; i++ {
+		result[i] = charset[int(b[i])%charsetLen]
+	}
+
+	return string(result), nil
+}
+
+func (rm *resourceManager) exportCertificate(
+	ctx context.Context,
+	r *resource,
+) error {
+	if r.ko.Spec.ExportTo == nil {
+		return nil
+	}
+
+	input := &svcsdk.ExportCertificateInput{}
+	if r.ko.Status.ACKResourceMetadata != nil && r.ko.Status.ACKResourceMetadata.ARN != nil {
+		input.CertificateArn = (*string)(r.ko.Status.ACKResourceMetadata.ARN)
+	}
+
+	passphraseLength := 8 // Desired length of the passphrase
+	passphrase, err := generateRandomString(passphraseLength)
+	if err != nil {
+		return err
+	}
+	input.Passphrase = []byte(passphrase)
+
+	resp, err := rm.sdkapi.ExportCertificate(ctx, input)
+	rm.metrics.RecordAPICall("READ_ONE", "ExportCertificate", err)
+	if err != nil {
+		return err
+	}
+
+	certificateChain := *resp.Certificate
+	if resp.CertificateChain != nil && *resp.CertificateChain != "" {
+		certificateChain = certificateChain + *resp.CertificateChain
+	}
+
+	if r.ko.Spec.ExportTo.Namespace != "" {
+		if err := rm.rr.WriteToSecret(ctx, certificateChain, r.ko.Spec.ExportTo.Namespace, r.ko.Spec.ExportTo.Name, r.ko.Spec.ExportTo.Key); err != nil {
+			return err
+		}
+	} else {
+		if err := rm.rr.WriteToSecret(ctx, certificateChain, r.ko.Namespace, r.ko.Spec.ExportTo.Name, r.ko.Spec.ExportTo.Key); err != nil {
+			return err
+		}
+	}
+
+	decryptedKey, err := DecryptPrivateKey([]byte(*resp.PrivateKey), []byte(passphrase), *r.ko.Spec.KeyAlgorithm)
+	if err != nil {
+		return err
+	}
+
+	if r.ko.Spec.ExportTo.Namespace != "" {
+		if err := rm.rr.WriteToSecret(ctx, string(decryptedKey), r.ko.Spec.ExportTo.Namespace, r.ko.Spec.ExportTo.Name, "tls.key"); err != nil {
+			return err
+		}
+	} else {
+		if err := rm.rr.WriteToSecret(ctx, string(decryptedKey), r.ko.Namespace, r.ko.Spec.ExportTo.Name, "tls.key"); err != nil {
+			return err
+		}
+	}
+
+	// No need to update secret annotations since we're now tracking IssuedAt changes
+	// in the template logic using the Certificate object's Status field
+	return nil
+}
+
+func DecryptPrivateKey(encryptedPEM, passphrase []byte, keyAlgorithm string) ([]byte, error) {
+	pemBlock, _ := pem.Decode(encryptedPEM)
+	if pemBlock == nil {
+		return nil, errors.New("failed to decode PEM block: no PEM data found")
+	}
+	privateKey, err := pkcs8.ParsePKCS8PrivateKey(pemBlock.Bytes, passphrase)
+	if err != nil {
+		return nil, errors.New("failed to decrypt PEM block")
+	}
+
+	// NOTE: Algorithms supported for an ACM certificate request include: RSA_2048, EC_prime256v1, EC_secp384r1
+	if strings.Contains(keyAlgorithm, "RSA") {
+		derBytes, err := x509.MarshalPKCS8PrivateKey(privateKey.(*rsa.PrivateKey))
+		if err != nil {
+			return nil, errors.New("failed to marshal PEM block")
+		}
+
+		pemBytes := pem.EncodeToMemory(&pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: derBytes,
+		})
+		return pemBytes, err
+	} else {
+		derBytes, err := x509.MarshalPKCS8PrivateKey(privateKey.(*ecdsa.PrivateKey))
+		if err != nil {
+			return nil, errors.New("failed to marshal PEM block")
+		}
+
+		pemBytes := pem.EncodeToMemory(&pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: derBytes,
+		})
+		return pemBytes, err
+	}
+}
+
+func compareCertificateIssuedAt(
+	delta *ackcompare.Delta,
+	a *resource,
+	b *resource,
+) {
+	if a.ko.Spec.ExportTo != nil {
+		// NOTE: first time the certificate is issued
+		if a.ko.Status.IssuedAt == nil && b.ko.Status.Status != nil && *b.ko.Status.Status == "ISSUED" {
+			// NOTE: ack runtime ONLY goes into update if delta key starts with "Spec"
+			// https://github.com/aws-controllers-k8s/runtime/blob/main/pkg/runtime/reconciler.go#L894-L903
+			delta.Add("Spec.Status.IssuedAt", a.ko.Status.IssuedAt, b.ko.Status.IssuedAt)
+		}
+		// NOTE: when the certificate is renewed
+		if a.ko.Status.Serial != nil && b.ko.Status.Serial != nil && *a.ko.Status.Serial != *b.ko.Status.Serial {
+			// NOTE: ack runtime ONLY goes into update if delta key starts with "Spec"
+			// https://github.com/aws-controllers-k8s/runtime/blob/main/pkg/runtime/reconciler.go#L894-L903
+			delta.Add("Spec.Status.Serial", a.ko.Status.Serial, b.ko.Status.Serial)
+		}
+	}
 }

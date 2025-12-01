@@ -402,7 +402,27 @@ func (rm *resourceManager) sdkCreate(
 	if err != nil {
 		return nil, err
 	}
+	// We only support DNS-based validation, because
+	// certificate renewal is not really automatable when email verification
+	// is used.
+	//
+	// See discussion here:
+	// https://docs.aws.amazon.com/acm/latest/userguide/email-validation.html
+	//
+	// Unfortunately, because fields in the "ignore" configuration list are
+	// now deleted from the aws-sdk-go private/model/api.Shape object,
+	// setting `override_values` does not work.
+
 	input.ValidationMethod = "DNS"
+
+	// NOTE: exportPreference can ONLY be set for public certificates
+	if desired.ko.Spec.ExportTo != nil && desired.ko.Spec.CertificateAuthorityARN == nil && desired.ko.Spec.CertificateAuthorityRef == nil {
+		options := input.Options
+		if options == nil {
+			options = &svcsdktypes.CertificateOptions{}
+		}
+		options.Export = "ENABLED"
+	}
 
 	var resp *svcsdk.RequestCertificateOutput
 	_ = resp
@@ -499,6 +519,40 @@ func (rm *resourceManager) sdkUpdate(
 	defer func() {
 		exit(err)
 	}()
+	if delta.DifferentAt("Spec.Status.IssuedAt") {
+		rlog.Info("Exporting certificate due to IssuedAt change")
+		if err = rm.exportCertificate(ctx, &resource{latest.ko}); err != nil {
+			rlog.Info("failed to export certificate", "error", err)
+			return nil, err
+		} else {
+			rlog.Info("Certificate export completed successfully")
+		}
+		ko := desired.ko.DeepCopy()
+
+		rm.setStatusDefaults(ko)
+		ko.Status.IssuedAt = latest.ko.Status.IssuedAt
+		ko.Status.Status = latest.ko.Status.Status
+		ko.Status.Serial = latest.ko.Status.Serial
+		return &resource{ko}, nil
+	}
+
+	if delta.DifferentAt("Spec.Status.Serial") {
+		rlog.Info("Exporting certificate due to Serial change")
+		if err = rm.exportCertificate(ctx, &resource{latest.ko}); err != nil {
+			rlog.Info("failed to export certificate", "error", err)
+			return nil, err
+		} else {
+			rlog.Info("Certificate export completed successfully")
+		}
+		ko := desired.ko.DeepCopy()
+
+		rm.setStatusDefaults(ko)
+		ko.Status.IssuedAt = latest.ko.Status.IssuedAt
+		ko.Status.Status = latest.ko.Status.Status
+		ko.Status.Serial = latest.ko.Status.Serial
+		return &resource{ko}, nil
+	}
+
 	if delta.DifferentAt("Spec.Tags") {
 		if err := syncTags(
 			ctx, rm.sdkapi, rm.metrics,
@@ -535,6 +589,9 @@ func (rm *resourceManager) sdkUpdate(
 	ko := desired.ko.DeepCopy()
 
 	rm.setStatusDefaults(ko)
+	ko.Status.IssuedAt = latest.ko.Status.IssuedAt
+	ko.Status.Status = latest.ko.Status.Status
+	ko.Status.Serial = latest.ko.Status.Serial
 	return &resource{ko}, nil
 }
 

@@ -17,22 +17,16 @@ operations:
 resources:
   Certificate:
     hooks:
+      delta_pre_compare:
+        template_path: hooks/certificate/delta_pre_compare.go.tpl
       sdk_update_pre_build_request:
         template_path: hooks/certificate/sdk_update_pre_build_request.go.tpl
+      sdk_update_post_set_output:
+        template_path: hooks/certificate/sdk_update_post_set_output.go.tpl
       sdk_create_pre_build_request:
         template_path: hooks/certificate/sdk_create_pre_build_request.go.tpl
       sdk_create_post_build_request:
-        # NOTE(jaypipes): We only support DNS-based validation, because
-        # certificate renewal is not really automatable when email verification
-        # is used.
-        #
-        # See discussion here:
-        # https://docs.aws.amazon.com/acm/latest/userguide/email-validation.html
-        #
-        # Unfortunately, because fields in the "ignore" configuration list are
-        # now deleted from the aws-sdk-go private/model/api.Shape object,
-        # setting `override_values` above does not work :(
-        code: input.ValidationMethod = "DNS"
+        template_path: hooks/certificate/sdk_create_post_build_request.go.tpl
       sdk_read_one_pre_set_output:
         template_path: hooks/certificate/sdk_read_one_pre_set_output.go.tpl
       sdk_file_end:
@@ -53,6 +47,12 @@ resources:
     reconcile:
       requeue_on_success_seconds: 60
     fields:
+      ExportTo:
+        type: "bytes"
+        is_immutable: true
+        is_secret: true
+        compare:
+          is_ignored: true
       DomainName:
         is_primary_key: false
         is_required: false

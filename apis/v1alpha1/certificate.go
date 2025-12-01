@@ -63,6 +63,8 @@ type CertificateSpec struct {
 	// validate domain ownership.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	DomainValidationOptions []*DomainValidationOption `json:"domainValidationOptions,omitempty"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
+	ExportTo *ackv1alpha1.SecretKeyReference `json:"exportTo,omitempty"`
 	// Specifies the algorithm of the public and private key pair that your certificate
 	// uses to encrypt data. RSA is the default key algorithm for ACM certificates.
 	// Elliptic Curve Digital Signature Algorithm (ECDSA) keys are smaller, offering

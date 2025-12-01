@@ -2,6 +2,7 @@
     "Version": "2012-10-17",
     "Statement": [
         {
+            "Sid": "ACMPublicCertificatePermissions",
             "Effect": "Allow",
             "Action": [
                 "acm:DescribeCertificate",
@@ -11,7 +12,18 @@
                 "acm:DeleteCertificate",
                 "acm:AddTagsToCertificate",
                 "acm:RemoveTagsFromCertificate",
-                "acm:ListTagsForCertificate"
+                "acm:ListTagsForCertificate",
+                "acm:ExportCertificate"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ACMPrivateCertificatePermissions",
+            "Effect": "Allow",
+            "Action": [
+                "acm-pca:IssueCertificate",
+                "acm-pca:GetCertificate",
+                "acm-pca:ListPermissions"
             ],
             "Resource": "*"
         }

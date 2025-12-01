@@ -316,6 +316,11 @@ func (in *CertificateSpec) DeepCopyInto(out *CertificateSpec) {
 			}
 		}
 	}
+	if in.ExportTo != nil {
+		in, out := &in.ExportTo, &out.ExportTo
+		*out = new(corev1alpha1.SecretKeyReference)
+		**out = **in
+	}
 	if in.KeyAlgorithm != nil {
 		in, out := &in.KeyAlgorithm, &out.KeyAlgorithm
 		*out = new(string)
