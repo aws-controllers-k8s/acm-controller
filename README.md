@@ -11,7 +11,7 @@ Kubernetes Github project.
 ## Getting Started
 
 ### Pricing
-The ACK service controller for AWS Certificate Manager is free of charge. If you issue an exportable public certificate with AWS Certificate Manager, there is a charge at certificate issuance and again when the certificate renews. Learn more about [AWS Certificate Manager Pricing](https://aws.amazon.com/certificate-manager/pricing/).
+The ACK service controller for AWS Certificate Manager is free of charge. If you issue an [exportable public certificate](https://docs.aws.amazon.com/acm/latest/userguide/acm-exportable-certificates.html) with AWS Certificate Manager, there is a charge at certificate issuance and again when the certificate renews. Learn more about [AWS Certificate Manager Pricing](https://aws.amazon.com/certificate-manager/pricing/).
 
 [samples]: https://github.com/aws-controllers-k8s/acmpca-controller/tree/main/samples
 
@@ -77,6 +77,7 @@ spec:
     name: exported-cert-secret
     key: tls.crt
 ```
+If you are issuing a privately trusted certificate, please also consider using this cert-manager plugin: https://github.com/cert-manager/aws-privateca-issuer/.
 
 ## Contributing
 
