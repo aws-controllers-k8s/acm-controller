@@ -20,6 +20,8 @@ The ACK service controller for AWS Certificate Manager uses Kubernetes TLS Secre
 
 In addition, after a certificate is successfully renewed by ACM, the ACK service controller for AWS Certificate Manager will automatically export the renewed certificate again so that the Kubernetes TLS Secret `exportTo` contains the certificate data and private key data of the renewed certificate.
 
+Learn more about [securing Kubernetes workloads with ACM certificates](https://docs.aws.amazon.com/acm/latest/userguide/exportable-certificates-kubernetes.html).
+
 #### Export Certificate
 To export an ACM certificate to a Kubernetes TLS Secret, users must specify the namespace and the name of the Secret using the `exportTo` field of the Certificate resource, as shown below.
 
