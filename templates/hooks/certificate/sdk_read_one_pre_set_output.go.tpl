@@ -36,9 +36,15 @@
 		ko.Status.DomainValidations = nil
 	}
 	ko.Spec.Tags, err = listTags(
-		ctx, rm.sdkapi, rm.metrics, 
-		string(*r.ko.Status.ACKResourceMetadata.ARN), 
+		ctx, rm.sdkapi, rm.metrics,
+		string(*r.ko.Status.ACKResourceMetadata.ARN),
 	)
 	if err != nil {
 		return nil, err
+	}
+	// Normalize KeyAlgorithm to use underscores instead of dashes
+	// AWS API returns dashes (e.g., RSA-2048) but users specify underscores (e.g., RSA_2048)
+	if resp.Certificate.KeyAlgorithm != "" {
+		normalizedAlgorithm := normalizeKeyAlgorithm(string(resp.Certificate.KeyAlgorithm))
+		ko.Spec.KeyAlgorithm = &normalizedAlgorithm
 	}

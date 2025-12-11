@@ -252,6 +252,14 @@ func DecryptPrivateKey(encryptedPEM, passphrase []byte, keyAlgorithm string) ([]
 	}
 }
 
+// normalizeKeyAlgorithm normalizes a KeyAlgorithm value by replacing all dash
+// characters with underscore characters. This ensures consistency between the
+// user-specified format (e.g., RSA_2048) and the AWS API response format
+// (e.g., RSA-2048).
+func normalizeKeyAlgorithm(algorithm string) string {
+	return strings.ReplaceAll(algorithm, "-", "_")
+}
+
 func compareCertificateIssuedAt(
 	delta *ackcompare.Delta,
 	a *resource,

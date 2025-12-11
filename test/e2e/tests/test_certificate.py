@@ -241,6 +241,60 @@ class TestCertificate:
             'type': condition.CONDITION_TYPE_TERMINAL,
         }
 
+    @pytest.mark.parametrize('certificate_public', ['certificate_with_key_algorithm'], indirect=True)
+    def test_key_algorithm_normalization(
+            self,
+            certificate_public,
+    ):
+        """Test that KeyAlgorithm with underscores is preserved after sync.
+
+        This test verifies that when a user specifies keyAlgorithm as RSA_2048
+        (with underscores), the controller normalizes the AWS API response
+        (which uses dashes like RSA-2048) back to underscores, preventing
+        infinite reconciliation loops.
+        """
+        (ref, cr) = certificate_public
+        assert "status" in cr
+        assert "ackResourceMetadata" in cr["status"]
+        assert "arn" in cr["status"]["ackResourceMetadata"]
+        certificate_arn = cr["status"]["ackResourceMetadata"]["arn"]
+
+        # Wait for the resource to get synced
+        assert k8s.wait_on_condition(
+            ref,
+            "ACK.ResourceSynced",
+            "True",
+            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
+        )
+
+        # Verify the keyAlgorithm field maintains underscore format after sync
+        cr = k8s.get_resource(ref)
+        assert "spec" in cr
+        assert "keyAlgorithm" in cr["spec"]
+        # The keyAlgorithm should remain RSA_2048 (with underscores), not RSA-2048
+        assert cr["spec"]["keyAlgorithm"] == "RSA_2048", \
+            f"Expected keyAlgorithm to be 'RSA_2048' but got '{cr['spec']['keyAlgorithm']}'"
+
+        # Wait a bit and check again to ensure no reconciliation loop
+        time.sleep(10)
+
+        # Verify the resource is still synced (no reconciliation loop)
+        assert k8s.wait_on_condition(
+            ref,
+            "ACK.ResourceSynced",
+            "True",
+            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
+        )
+
+        # Verify keyAlgorithm is still in underscore format
+        cr = k8s.get_resource(ref)
+        assert cr["spec"]["keyAlgorithm"] == "RSA_2048", \
+            f"KeyAlgorithm changed after sync, expected 'RSA_2048' but got '{cr['spec']['keyAlgorithm']}'"
+
+        k8s.delete_custom_resource(ref)
+        time.sleep(DELETE_WAIT_AFTER_SECONDS)
+        certificate.wait_until_deleted(certificate_arn)
+
     def test_import_certificate(
             self,
             certificate_import,
