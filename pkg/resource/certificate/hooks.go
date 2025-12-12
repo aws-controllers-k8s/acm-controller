@@ -260,6 +260,20 @@ func normalizeKeyAlgorithm(algorithm string) string {
 	return strings.ReplaceAll(algorithm, "-", "_")
 }
 
+func compareKeyAlgorithm(
+	delta *ackcompare.Delta,
+	a *resource,
+	b *resource,
+) {
+	if a.ko.Spec.KeyAlgorithm != nil && b.ko.Spec.KeyAlgorithm != nil {
+		normalizedA := normalizeKeyAlgorithm(*a.ko.Spec.KeyAlgorithm)
+		normalizedB := normalizeKeyAlgorithm(*b.ko.Spec.KeyAlgorithm)
+		if normalizedA != normalizedB {
+			delta.Add("Spec.KeyAlgorithm", a.ko.Spec.KeyAlgorithm, b.ko.Spec.KeyAlgorithm)
+		}
+	}
+}
+
 func compareCertificateIssuedAt(
 	delta *ackcompare.Delta,
 	a *resource,
