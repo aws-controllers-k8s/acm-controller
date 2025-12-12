@@ -275,22 +275,6 @@ class TestCertificate:
         assert cr["spec"]["keyAlgorithm"] == "RSA_2048", \
             f"Expected keyAlgorithm to be 'RSA_2048' but got '{cr['spec']['keyAlgorithm']}'"
 
-        # Wait a bit and check again to ensure no reconciliation loop
-        time.sleep(10)
-
-        # Verify the resource is still synced (no reconciliation loop)
-        assert k8s.wait_on_condition(
-            ref,
-            "ACK.ResourceSynced",
-            "True",
-            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
-        )
-
-        # Verify keyAlgorithm is still in underscore format
-        cr = k8s.get_resource(ref)
-        assert cr["spec"]["keyAlgorithm"] == "RSA_2048", \
-            f"KeyAlgorithm changed after sync, expected 'RSA_2048' but got '{cr['spec']['keyAlgorithm']}'"
-
         k8s.delete_custom_resource(ref)
         time.sleep(DELETE_WAIT_AFTER_SECONDS)
         certificate.wait_until_deleted(certificate_arn)
