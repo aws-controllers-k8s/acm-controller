@@ -17,16 +17,15 @@ package certificate
 
 import (
 	"bytes"
-	"reflect"
 
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	acktags "github.com/aws-controllers-k8s/runtime/pkg/tags"
+	"k8s.io/apimachinery/pkg/api/equality"
 )
 
 // Hack to avoid import errors during build...
 var (
 	_ = &bytes.Buffer{}
-	_ = &reflect.Method{}
 	_ = &acktags.Tags{}
 )
 
@@ -59,7 +58,7 @@ func newResourceDelta(
 			delta.Add("Spec.CertificateAuthorityARN", a.ko.Spec.CertificateAuthorityARN, b.ko.Spec.CertificateAuthorityARN)
 		}
 	}
-	if !reflect.DeepEqual(a.ko.Spec.CertificateAuthorityRef, b.ko.Spec.CertificateAuthorityRef) {
+	if !equality.Semantic.Equalities.DeepEqual(a.ko.Spec.CertificateAuthorityRef, b.ko.Spec.CertificateAuthorityRef) {
 		delta.Add("Spec.CertificateAuthorityRef", a.ko.Spec.CertificateAuthorityRef, b.ko.Spec.CertificateAuthorityRef)
 	}
 	if ackcompare.HasNilDifference(a.ko.Spec.DomainName, b.ko.Spec.DomainName) {
