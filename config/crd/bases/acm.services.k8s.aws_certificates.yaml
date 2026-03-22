@@ -276,9 +276,6 @@ spec:
                 items:
                   type: string
                 type: array
-                x-kubernetes-validations:
-                - message: Value is immutable once set
-                  rule: self == oldSelf
               tags:
                 description: One or more resource tags to associate with the certificate.
                 items:
