@@ -79,13 +79,6 @@ func newResourceDelta(
 			}
 		}
 	}
-	if len(a.ko.Spec.SubjectAlternativeNames) != len(b.ko.Spec.SubjectAlternativeNames) {
-		delta.Add("Spec.SubjectAlternativeNames", a.ko.Spec.SubjectAlternativeNames, b.ko.Spec.SubjectAlternativeNames)
-	} else if len(a.ko.Spec.SubjectAlternativeNames) > 0 {
-		if !ackcompare.SliceStringPEqual(a.ko.Spec.SubjectAlternativeNames, b.ko.Spec.SubjectAlternativeNames) {
-			delta.Add("Spec.SubjectAlternativeNames", a.ko.Spec.SubjectAlternativeNames, b.ko.Spec.SubjectAlternativeNames)
-		}
-	}
 	desiredACKTags, _ := convertToOrderedACKTags(a.ko.Spec.Tags)
 	latestACKTags, _ := convertToOrderedACKTags(b.ko.Spec.Tags)
 	if !ackcompare.MapStringStringEqual(desiredACKTags, latestACKTags) {

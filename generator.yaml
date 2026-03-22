@@ -199,3 +199,8 @@ resources:
         from:
           operation: DescribeCertificate
           path: Certificate.Type
+      SubjectAlternativeNames:
+        late_initialize: {}
+        is_immutable: true
+        compare:
+          is_ignored: true

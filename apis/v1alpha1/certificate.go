@@ -126,6 +126,8 @@ type CertificateSpec struct {
 	//
 	//   - (63 octets).(63 octets).(63 octets).(62 octets) is not legal because
 	//     the total length of the DNS name (63+1+63+1+63+1+62) exceeds 253 octets.
+	//
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	SubjectAlternativeNames []*string `json:"subjectAlternativeNames,omitempty"`
 	// One or more resource tags to associate with the certificate.
 	Tags []*Tag `json:"tags,omitempty"`
