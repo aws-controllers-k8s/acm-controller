@@ -354,6 +354,27 @@ func (rm *resourceManager) FilterSystemTags(res acktypes.AWSResource, systemTags
 	r.ko.Spec.Tags = fromACKTags(resourceTags, tagKeyOrder)
 }
 
+// OnAdopted is called after a resource has been successfully adopted and
+// marked as managed. Override this behavior using the "on_adopted" hook
+// in generator.yaml. The default implementation is a no-op.
+func (rm *resourceManager) OnAdopted(
+	ctx context.Context,
+	res acktypes.AWSResource,
+) (acktypes.AWSResource, error) {
+	r := rm.concreteResource(res)
+	rlog := ackrtlog.FromContext(ctx)
+	rlog.Info("OnAdopted is called!")
+	if r.ko.Spec.ExportTo != nil {
+		if err := rm.exportCertificate(ctx, r); err != nil {
+			rlog.Info("Failed to export adopted certificate", "error", err)
+			return nil, err
+		} else {
+			rlog.Info("Adopted certificate export completed successfully")
+		}
+	}
+	return res, nil
+}
+
 // mirrorAWSTags ensures that AWS tags are included in the desired resource
 // if they are present in the latest resource. This will ensure that the
 // aws tags are not present in a diff. The logic of the controller will
