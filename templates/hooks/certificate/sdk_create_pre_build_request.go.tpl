@@ -1,4 +1,4 @@
-    created, isImport, err := rm.maybeImportCertificate(ctx, desired)
+    created, isImport, err := rm.ImportTlsCertificate(ctx, desired)
     if err != nil {
         return nil, err
     }

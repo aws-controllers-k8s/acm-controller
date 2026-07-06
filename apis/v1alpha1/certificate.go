@@ -21,14 +21,17 @@ import (
 )
 
 // CertificateSpec defines the desired state of Certificate.
+// +kubebuilder:validation:XValidation:rule="!has(self.importFrom) || (!has(self.certificate) && !has(self.certificateAuthorityARN) && !has(self.certificateAuthorityRef) && !has(self.certificateChain) && !has(self.domainName) && !has(self.domainValidationOptions) && !has(self.exportTo) && !has(self.keyAlgorithm) && !has(self.options) && !has(self.privateKey) && !has(self.subjectAlternativeNames))",message="importFrom cannot be set with certificate request, export, or opaque secret import fields"
 type CertificateSpec struct {
 
-	// The Certificate to import into AWS Certificate Manager (ACM) to use with services that are integrated with ACM.
-	// This field is only valid when importing an existing certificate into ACM.
+	// Opaque secret import field. Reference to a Kubernetes Secret key containing the leaf certificate PEM to
+	// import into ACM. Requires privateKey. Mutually exclusive with importFrom and certificate request
+	// fields. If the PEM contains multiple certificate blocks, the controller splits leaf and
+	// intermediate certificates automatically. Immutable once set.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	Certificate *ackv1alpha1.SecretKeyReference `json:"certificate,omitempty"`
-	// The Amazon Resource Name (ARN) of an imported certificate to replace. This field is only valid when importing
-	// an existing certificate into ACM.
+	// The Amazon Resource Name (ARN) of an imported certificate to replace. Valid with opaque secret
+	// import (certificate/privateKey) or importFrom. Immutable once set.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	CertificateARN *string `json:"certificateARN,omitempty"`
 	// The Amazon Resource Name (ARN) of the private certificate authority (CA)
@@ -44,6 +47,9 @@ type CertificateSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	CertificateAuthorityARN *string                                  `json:"certificateAuthorityARN,omitempty"`
 	CertificateAuthorityRef *ackv1alpha1.AWSResourceReferenceWrapper `json:"certificateAuthorityRef,omitempty"`
+	// Opaque secret import field. Optional reference to a Kubernetes Secret key containing intermediate
+	// certificate PEMs. Use when the chain is stored separately from certificate. Mutually exclusive
+	// with importFrom and certificate request fields. Immutable once set.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	CertificateChain *ackv1alpha1.SecretKeyReference `json:"certificateChain,omitempty"`
 	// Fully qualified domain name (FQDN), such as www.example.com, that you want
@@ -66,6 +72,13 @@ type CertificateSpec struct {
 	DomainValidationOptions []*DomainValidationOption `json:"domainValidationOptions,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	ExportTo *ackv1alpha1.SecretKeyReference `json:"exportTo,omitempty"`
+	// Reference to an existing Kubernetes TLS Secret to import into ACM. The certificate PEM is read from
+	// tls.crt and the private key is read from tls.key in the Secret. If tls.crt contains multiple PEM
+	// blocks (leaf certificate followed by intermediate certificates), they are automatically split for
+	// ACM import. Mutually exclusive with opaque secret import fields (certificate, privateKey,
+	// certificateChain) and certificate request fields. May be updated after creation. certificateARN
+	// may be set to replace an existing imported certificate.
+	ImportFrom *ackv1alpha1.SecretReference `json:"importFrom,omitempty"`
 	// Specifies the algorithm of the public and private key pair that your certificate
 	// uses to encrypt data. RSA is the default key algorithm for ACM certificates.
 	// Elliptic Curve Digital Signature Algorithm (ECDSA) keys are smaller, offering
@@ -108,8 +121,9 @@ type CertificateSpec struct {
 	// as well as outside the Amazon Web Services Cloud. For more information, see
 	// Certificate Manager exportable public certificate (https://docs.aws.amazon.com/acm/latest/userguide/acm-exportable-certificates.html).
 	Options *CertificateOptions `json:"options,omitempty"`
-	// The private key that matches the public key in the certificate. This field is only valid when importing
-	// an existing certificate into ACM.
+	// Opaque secret import field. Reference to a Kubernetes Secret key containing the private key PEM that
+	// matches certificate. Required when certificate is set. Mutually exclusive with importFrom and
+	// certificate request fields. Immutable once set.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	PrivateKey *ackv1alpha1.SecretKeyReference `json:"privateKey,omitempty"`
 	// Additional FQDNs to be included in the Subject Alternative Name extension

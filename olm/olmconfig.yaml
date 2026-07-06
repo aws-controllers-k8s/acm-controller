@@ -31,6 +31,10 @@ description: |-
 samples:
 - kind: Certificate
   spec: '{}'
+- kind: Certificate
+  spec: |
+    importFrom:
+      name: my-tls-secret
 maintainers:
 - name: "acm maintainer team"
   email: "ack-maintainers@amazon.com"
