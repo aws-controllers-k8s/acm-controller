@@ -118,6 +118,16 @@ def get(certificate_arn):
         return None
 
 
+def get_body(certificate_arn):
+    """Returns the PEM-encoded leaf certificate from the ACM API."""
+    c = boto3.client('acm')
+    try:
+        resp = c.get_certificate(CertificateArn=certificate_arn)
+        return resp['Certificate']
+    except c.exceptions.ResourceNotFoundException:
+        return None
+
+
 def get_tags(certificate_arn):
     """Returns a dict containing the Certificate's tag records from the ACM
     API.

@@ -14,6 +14,7 @@
 package certificate
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
@@ -24,19 +25,29 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/aws-controllers-k8s/acm-controller/pkg/tags"
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
+	ackrequeue "github.com/aws-controllers-k8s/runtime/pkg/requeue"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/acm"
 	pkcs8 "github.com/youmark/pkcs8"
+
+	svcapitypes "github.com/aws-controllers-k8s/acm-controller/apis/v1alpha1"
 )
 
 const (
 	// DNS validation only works for up to 5 chained CNAME records
 	limitDomainValidationOptionsPublic = 5
+	// tlsCertificateSecretDataKey is the secret data key for the certificate when
+	// importing from a Kubernetes TLS Secret via importFrom.
+	tlsCertificateSecretDataKey = "tls.crt"
+	// tlsPrivateKeySecretDataKey is the secret data key for the private key when
+	// importing from a Kubernetes TLS Secret via importFrom.
+	tlsPrivateKeySecretDataKey = "tls.key"
 )
 
 var (
@@ -72,29 +83,140 @@ func validatePublicValidationOptions(
 	return nil
 }
 
-// maybeImportCertificate imports a certificate into ACM if Spec.Certificate is set.
-func (rm *resourceManager) maybeImportCertificate(ctx context.Context, r *resource) (*resource, bool, error) {
+// importSecretRefs holds the resolved secret references for certificate import.
+type importSecretRefs struct {
+	Certificate      *ackv1alpha1.SecretKeyReference
+	PrivateKey       *ackv1alpha1.SecretKeyReference
+	CertificateChain *ackv1alpha1.SecretKeyReference
+}
+
+func isImportCertificateSpec(certSpec svcapitypes.CertificateSpec) bool {
+	return certSpec.Certificate != nil || certSpec.ImportFrom != nil
+}
+
+func importSecretRefsFromSpec(certSpec svcapitypes.CertificateSpec) (*importSecretRefs, error) {
+	if certSpec.ImportFrom != nil {
+		certRef := ackv1alpha1.SecretKeyReference{
+			SecretReference: certSpec.ImportFrom.SecretReference,
+			Key:             tlsCertificateSecretDataKey,
+		}
+		keyRef := ackv1alpha1.SecretKeyReference{
+			SecretReference: certSpec.ImportFrom.SecretReference,
+			Key:             tlsPrivateKeySecretDataKey,
+		}
+		return &importSecretRefs{
+			Certificate: &certRef,
+			PrivateKey:  &keyRef,
+		}, nil
+	}
+	return &importSecretRefs{
+		Certificate:      certSpec.Certificate,
+		PrivateKey:       certSpec.PrivateKey,
+		CertificateChain: certSpec.CertificateChain,
+	}, nil
+}
+
+func (rm *resourceManager) secretValueFromReference(
+	ctx context.Context,
+	ref *ackv1alpha1.SecretKeyReference,
+) (string, error) {
+	if ref == nil {
+		return "", nil
+	}
+	value, err := rm.rr.SecretValueFromReference(ctx, ref)
+	if err != nil {
+		return "", ackrequeue.Needed(err)
+	}
+	return value, nil
+}
+
+func validateImportFromExclusivity(certSpec svcapitypes.CertificateSpec) error {
+	if certSpec.ImportFrom == nil {
+		return nil
+	}
+	// Tags are excluded because the controller injects default tags via
+	// EnsureTags before create. Request fields populated from ACM are cleared
+	// before this validation when importFrom manages an existing certificate.
+	if certSpec.Certificate != nil || certSpec.PrivateKey != nil || certSpec.CertificateChain != nil ||
+		certSpec.ExportTo != nil ||
+		certSpec.CertificateAuthorityARN != nil || certSpec.CertificateAuthorityRef != nil ||
+		certSpec.DomainName != nil || len(certSpec.DomainValidationOptions) > 0 ||
+		certSpec.KeyAlgorithm != nil || certSpec.Options != nil ||
+		len(certSpec.SubjectAlternativeNames) > 0 {
+		return ackerr.NewTerminalError(errors.New("importFrom cannot be set with certificate request, export, or opaque secret import fields"))
+	}
+	return nil
+}
+
+func clearImportFromObservedSpecFields(certSpec *svcapitypes.CertificateSpec) {
+	certSpec.DomainValidationOptions = nil
+	certSpec.KeyAlgorithm = nil
+	certSpec.SubjectAlternativeNames = nil
+	certSpec.Options = nil
+	certSpec.DomainName = nil
+}
+
+// splitCertificateAndChain splits PEM data that may contain a leaf certificate
+// followed by intermediate certificates (as stored in a Kubernetes TLS Secret's
+// tls.crt key) into separate certificate and chain byte slices for ACM import.
+func splitCertificateAndChain(pemData []byte) (certificate []byte, chain []byte, err error) {
+	var certBlocks [][]byte
+	remaining := pemData
+	for {
+		var block *pem.Block
+		block, remaining = pem.Decode(remaining)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		certBlocks = append(certBlocks, pem.EncodeToMemory(block))
+	}
+	if len(certBlocks) == 0 {
+		return nil, nil, errors.New("no certificate found in PEM data")
+	}
+	certificate = certBlocks[0]
+	if len(certBlocks) > 1 {
+		chain = bytes.Join(certBlocks[1:], nil)
+	}
+	return certificate, chain, nil
+}
+
+// finalizeImportCertificateInput applies ImportCertificate request constraints that
+// are not expressed in the CRD schema. ACM does not permit tags when re-importing
+// a certificate at an existing ARN.
+func finalizeImportCertificateInput(input *svcsdk.ImportCertificateInput) {
+	if input.CertificateArn != nil && *input.CertificateArn != "" {
+		input.Tags = nil
+	}
+}
+
+// ImportTlsCertificate imports a certificate into ACM if Spec.Certificate or
+// Spec.ImportFrom is set.
+func (rm *resourceManager) ImportTlsCertificate(ctx context.Context, r *resource) (*resource, bool, error) {
 	certSpec := r.ko.Spec
-	if certSpec.Certificate != nil {
+	if isImportCertificateSpec(certSpec) {
 		// When re-importing a certificate that was previously created (has an
 		// ARN), clear request-only fields that were populated by late
 		// initialization / DescribeCertificate. These are informational for
 		// imported certs and will be re-populated after the new import succeeds.
 		if r.ko.Status.ACKResourceMetadata != nil && r.ko.Status.ACKResourceMetadata.ARN != nil {
-			certSpec.DomainValidationOptions = nil
-			certSpec.KeyAlgorithm = nil
-			certSpec.SubjectAlternativeNames = nil
-			certSpec.Options = nil
-			certSpec.DomainName = nil
+			clearImportFromObservedSpecFields(&certSpec)
 		}
-		if certSpec.DomainName != nil || len(certSpec.DomainValidationOptions) > 0 || certSpec.KeyAlgorithm != nil ||
-			len(certSpec.SubjectAlternativeNames) > 0 || certSpec.Options != nil {
+		if err := validateImportFromExclusivity(certSpec); err != nil {
+			return nil, false, err
+		}
+		if certSpec.ImportFrom == nil && (certSpec.DomainName != nil || len(certSpec.DomainValidationOptions) > 0 || certSpec.KeyAlgorithm != nil ||
+			len(certSpec.SubjectAlternativeNames) > 0 || certSpec.Options != nil) {
 			return nil, false, ackerr.NewTerminalError(errors.New("cannot set fields used for requesting a certificate when importing a certificate"))
 		}
 		input, err := rm.newImportCertificateInput(ctx, r)
 		if err != nil {
 			return nil, false, err
 		}
+		setImportCertificateARN(input, r)
+		finalizeImportCertificateInput(input)
 		if len(input.PrivateKey) == 0 {
 			return nil, false, ackerr.NewTerminalError(errors.New("privateKey is required when importing a certificate"))
 		}
@@ -104,7 +226,7 @@ func (rm *resourceManager) maybeImportCertificate(ctx context.Context, r *resour
 		}
 		return created, true, nil
 	}
-	if certSpec.DomainName != nil && (certSpec.Certificate != nil || certSpec.PrivateKey != nil || certSpec.CertificateChain != nil) {
+	if certSpec.DomainName != nil && (certSpec.Certificate != nil || certSpec.PrivateKey != nil || certSpec.CertificateChain != nil || certSpec.ImportFrom != nil) {
 		return nil, false, ackerr.NewTerminalError(errors.New("cannot set fields used for importing a certificate when requesting a certificate"))
 	}
 	return nil, false, nil
@@ -137,6 +259,157 @@ func (rm *resourceManager) importCertificate(
 	rm.setResourceFromImportCertificateOutput(created, resp)
 	rm.setStatusDefaults(ko)
 	return created, nil
+}
+
+func isImportFromManagedCertificate(r *resource) bool {
+	if r == nil || r.ko == nil || r.ko.Spec.ImportFrom == nil {
+		return false
+	}
+	if r.ko.Status.ACKResourceMetadata == nil || r.ko.Status.ACKResourceMetadata.ARN == nil {
+		return false
+	}
+	return r.ko.Status.Type != nil &&
+		*r.ko.Status.Type == string(svcapitypes.CertificateType_IMPORTED)
+}
+
+func parseLeafCertificate(pemData []byte) (*x509.Certificate, error) {
+	certPEM, _, err := splitCertificateAndChain(pemData)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		return nil, errors.New("failed to decode certificate PEM")
+	}
+	return x509.ParseCertificate(block.Bytes)
+}
+
+func (rm *resourceManager) importFromSecretLeafCertificate(
+	ctx context.Context,
+	certSpec svcapitypes.CertificateSpec,
+) (*x509.Certificate, error) {
+	refs, err := importSecretRefsFromSpec(certSpec)
+	if err != nil {
+		return nil, err
+	}
+	if refs.Certificate == nil {
+		return nil, errors.New("importFrom secret reference is missing")
+	}
+
+	pemData, err := rm.secretValueFromReference(ctx, refs.Certificate)
+	if err != nil {
+		return nil, err
+	}
+	if pemData == "" {
+		return nil, errors.New("importFrom TLS secret certificate is empty")
+	}
+	return parseLeafCertificate([]byte(pemData))
+}
+
+// certificatesMatch compares the complete DER-encoded leaf certificates.
+func certificatesMatch(a, b *x509.Certificate) bool {
+	return a != nil && b != nil && bytes.Equal(a.Raw, b.Raw)
+}
+
+func (rm *resourceManager) getACMLeafCertificate(
+	ctx context.Context,
+	r *resource,
+) (*x509.Certificate, error) {
+	if r == nil || r.ko == nil ||
+		r.ko.Status.ACKResourceMetadata == nil ||
+		r.ko.Status.ACKResourceMetadata.ARN == nil {
+		return nil, errors.New("cannot get ACM certificate without an ARN")
+	}
+	arn := string(*r.ko.Status.ACKResourceMetadata.ARN)
+	output, err := rm.sdkapi.GetCertificate(ctx, &svcsdk.GetCertificateInput{
+		CertificateArn: &arn,
+	})
+	rm.metrics.RecordAPICall("READ_ONE", "GetCertificate", err)
+	if err != nil {
+		return nil, err
+	}
+	if output.Certificate == nil {
+		return nil, errors.New("ACM GetCertificate response did not contain a certificate")
+	}
+	return parseLeafCertificate([]byte(*output.Certificate))
+}
+
+func setImportCertificateARN(input *svcsdk.ImportCertificateInput, r *resource) {
+	if input == nil || r == nil || r.ko == nil {
+		return
+	}
+	if input.CertificateArn != nil && *input.CertificateArn != "" {
+		return
+	}
+	if r.ko.Spec.CertificateARN != nil && *r.ko.Spec.CertificateARN != "" {
+		input.CertificateArn = r.ko.Spec.CertificateARN
+		return
+	}
+	if r.ko.Status.ACKResourceMetadata != nil && r.ko.Status.ACKResourceMetadata.ARN != nil {
+		arn := string(*r.ko.Status.ACKResourceMetadata.ARN)
+		input.CertificateArn = &arn
+	}
+}
+
+// syncImportFromSecretIfNeeded performs at most one re-import per read. The
+// next scheduled reconciliation observes ACM again, avoiding recursive sdkFind
+// calls while ACM propagates the replacement certificate.
+func (rm *resourceManager) syncImportFromSecretIfNeeded(
+	ctx context.Context,
+	r *resource,
+) (*resource, error) {
+	return rm.syncImportFromSecretWithImporter(
+		ctx,
+		r,
+		rm.getACMLeafCertificate,
+		rm.ImportTlsCertificate,
+	)
+}
+
+type getACMLeafCertificateFunc func(
+	context.Context,
+	*resource,
+) (*x509.Certificate, error)
+
+type importTLSCertificateFunc func(
+	context.Context,
+	*resource,
+) (*resource, bool, error)
+
+func (rm *resourceManager) syncImportFromSecretWithImporter(
+	ctx context.Context,
+	r *resource,
+	getACMCertificate getACMLeafCertificateFunc,
+	importCertificate importTLSCertificateFunc,
+) (*resource, error) {
+	if !isImportFromManagedCertificate(r) {
+		return r, nil
+	}
+
+	leafCert, err := rm.importFromSecretLeafCertificate(ctx, r.ko.Spec)
+	if err != nil {
+		return nil, err
+	}
+	acmCert, err := getACMCertificate(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+	if certificatesMatch(leafCert, acmCert) {
+		return r, nil
+	}
+
+	rlog := ackrtlog.FromContext(ctx)
+	rlog.Info(
+		"TLS secret certificate does not match ACM certificate, re-importing",
+	)
+	_, _, err = importCertificate(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+	return nil, ackrequeue.NeededAfter(
+		errors.New("waiting for ACM to observe the re-imported certificate"),
+		5*time.Second,
+	)
 }
 
 // importCertificateInput exists as a workaround for a limitation in code-generator.
@@ -281,6 +554,25 @@ func compareKeyAlgorithm(
 		normalizedB := normalizeKeyAlgorithm(*b.ko.Spec.KeyAlgorithm)
 		if normalizedA != normalizedB {
 			delta.Add("Spec.KeyAlgorithm", a.ko.Spec.KeyAlgorithm, b.ko.Spec.KeyAlgorithm)
+		}
+	}
+}
+
+func compareDomainName(
+	delta *ackcompare.Delta,
+	a *resource,
+	b *resource,
+) {
+	// DomainName is populated by ACM for importFrom certificates and is not
+	// part of the user's desired state.
+	if a.ko.Spec.ImportFrom != nil || b.ko.Spec.ImportFrom != nil {
+		return
+	}
+	if ackcompare.HasNilDifference(a.ko.Spec.DomainName, b.ko.Spec.DomainName) {
+		delta.Add("Spec.DomainName", a.ko.Spec.DomainName, b.ko.Spec.DomainName)
+	} else if a.ko.Spec.DomainName != nil && b.ko.Spec.DomainName != nil {
+		if *a.ko.Spec.DomainName != *b.ko.Spec.DomainName {
+			delta.Add("Spec.DomainName", a.ko.Spec.DomainName, b.ko.Spec.DomainName)
 		}
 	}
 }

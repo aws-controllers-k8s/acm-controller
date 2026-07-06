@@ -366,6 +366,19 @@ func (rm *resourceManager) sdkFind(
 	}
 
 	rm.setStatusDefaults(ko)
+	if ko.Spec.ImportFrom != nil {
+		clearImportFromObservedSpecFields(&ko.Spec)
+	}
+	{
+		syncedRes, err := rm.syncImportFromSecretIfNeeded(ctx, &resource{ko: ko})
+		if err != nil {
+			return nil, err
+		}
+		if syncedRes != nil && syncedRes.ko != nil {
+			ko = syncedRes.ko
+		}
+	}
+
 	return &resource{ko}, nil
 }
 
@@ -405,7 +418,7 @@ func (rm *resourceManager) sdkCreate(
 	defer func() {
 		exit(err)
 	}()
-	created, isImport, err := rm.maybeImportCertificate(ctx, desired)
+	created, isImport, err := rm.ImportTlsCertificate(ctx, desired)
 	if err != nil {
 		return nil, err
 	}
@@ -841,36 +854,109 @@ func (rm *resourceManager) newImportCertificateInput(
 		input.Tags = inputf4
 	}
 
+	refs, err := importSecretRefsFromSpec(r.ko.Spec)
+	if err != nil {
+		return nil, err
+	}
+
 	{
-		tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.PrivateKey)
-		if err != nil {
-			return nil, ackrequeue.Needed(err)
+		var secretRef *ackv1alpha1.SecretKeyReference
+		switch "PrivateKey" {
+		case "PrivateKey":
+			secretRef = refs.PrivateKey
+		case "Certificate":
+			secretRef = refs.Certificate
+		case "CertificateChain":
+			secretRef = refs.CertificateChain
 		}
-		if tmpSecret != "" {
-			input.ImportCertificateInput.PrivateKey = []byte(tmpSecret)
+		if secretRef != nil {
+			tmpSecret, err := rm.secretValueFromReference(ctx, secretRef)
+			if err != nil {
+				return nil, err
+			}
+			if tmpSecret != "" {
+				if "PrivateKey" == "Certificate" && refs.CertificateChain == nil {
+					cert, chain, err := splitCertificateAndChain([]byte(tmpSecret))
+					if err != nil {
+						return nil, ackerr.NewTerminalError(err)
+					}
+					input.ImportCertificateInput.Certificate = cert
+					if len(chain) > 0 {
+						input.ImportCertificateInput.CertificateChain = chain
+					}
+				} else {
+					input.ImportCertificateInput.PrivateKey = []byte(tmpSecret)
+				}
+			}
 		}
 	}
 
 	{
-		tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.Certificate)
-		if err != nil {
-			return nil, ackrequeue.Needed(err)
+		var secretRef *ackv1alpha1.SecretKeyReference
+		switch "Certificate" {
+		case "PrivateKey":
+			secretRef = refs.PrivateKey
+		case "Certificate":
+			secretRef = refs.Certificate
+		case "CertificateChain":
+			secretRef = refs.CertificateChain
 		}
-		if tmpSecret != "" {
-			input.ImportCertificateInput.Certificate = []byte(tmpSecret)
+		if secretRef != nil {
+			tmpSecret, err := rm.secretValueFromReference(ctx, secretRef)
+			if err != nil {
+				return nil, err
+			}
+			if tmpSecret != "" {
+				if "Certificate" == "Certificate" && refs.CertificateChain == nil {
+					cert, chain, err := splitCertificateAndChain([]byte(tmpSecret))
+					if err != nil {
+						return nil, ackerr.NewTerminalError(err)
+					}
+					input.ImportCertificateInput.Certificate = cert
+					if len(chain) > 0 {
+						input.ImportCertificateInput.CertificateChain = chain
+					}
+				} else {
+					input.ImportCertificateInput.Certificate = []byte(tmpSecret)
+				}
+			}
 		}
 	}
 
 	{
-		tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.CertificateChain)
-		if err != nil {
-			return nil, ackrequeue.Needed(err)
+		var secretRef *ackv1alpha1.SecretKeyReference
+		switch "CertificateChain" {
+		case "PrivateKey":
+			secretRef = refs.PrivateKey
+		case "Certificate":
+			secretRef = refs.Certificate
+		case "CertificateChain":
+			secretRef = refs.CertificateChain
 		}
-		if tmpSecret != "" {
-			input.ImportCertificateInput.CertificateChain = []byte(tmpSecret)
+		if secretRef != nil {
+			tmpSecret, err := rm.secretValueFromReference(ctx, secretRef)
+			if err != nil {
+				return nil, err
+			}
+			if tmpSecret != "" {
+				if "CertificateChain" == "Certificate" && refs.CertificateChain == nil {
+					cert, chain, err := splitCertificateAndChain([]byte(tmpSecret))
+					if err != nil {
+						return nil, ackerr.NewTerminalError(err)
+					}
+					input.ImportCertificateInput.Certificate = cert
+					if len(chain) > 0 {
+						input.ImportCertificateInput.CertificateChain = chain
+					}
+				} else {
+					input.ImportCertificateInput.CertificateChain = []byte(tmpSecret)
+				}
+			}
 		}
 	}
 
+	setImportCertificateARN(input.ImportCertificateInput, r)
+	finalizeImportCertificateInput(input.ImportCertificateInput)
 	return input.ImportCertificateInput, nil
 }
 
