@@ -24,17 +24,45 @@ func (rm *resourceManager) new{{ $inputShapeName }}(
 ) (*svcsdk.{{ $inputShapeName }}, error) {
     input := &importCertificateInput{ImportCertificateInput: &svcsdk.ImportCertificateInput{}}
 {{ GoCodeSetSDKForStruct $CRD "" "input" $inputRef "" "r.ko.Spec" 1 }}
+    refs, err := importSecretRefsFromSpec(r.ko.Spec)
+    if err != nil {
+        return nil, err
+    }
     {{range $fieldName := Each "PrivateKey" "Certificate" "CertificateChain"}}
     {
-        tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.{{$fieldName}})
-        if err != nil {
-            return nil, ackrequeue.Needed(err)
+        var secretRef *ackv1alpha1.SecretKeyReference
+        switch "{{$fieldName}}" {
+        case "PrivateKey":
+            secretRef = refs.PrivateKey
+        case "Certificate":
+            secretRef = refs.Certificate
+        case "CertificateChain":
+            secretRef = refs.CertificateChain
         }
-        if tmpSecret != "" {
-            input.ImportCertificateInput.{{$fieldName}} = []byte(tmpSecret)
+        if secretRef != nil {
+            tmpSecret, err := rm.secretValueFromReference(ctx, secretRef)
+            if err != nil {
+                return nil, err
+            }
+            if tmpSecret != "" {
+                if "{{$fieldName}}" == "Certificate" && refs.CertificateChain == nil {
+                    cert, chain, err := splitCertificateAndChain([]byte(tmpSecret))
+                    if err != nil {
+                        return nil, ackerr.NewTerminalError(err)
+                    }
+                    input.ImportCertificateInput.Certificate = cert
+                    if len(chain) > 0 {
+                        input.ImportCertificateInput.CertificateChain = chain
+                    }
+                } else {
+                    input.ImportCertificateInput.{{$fieldName}} = []byte(tmpSecret)
+                }
+            }
         }
     }
     {{end}}
+    setImportCertificateARN(input.ImportCertificateInput, r)
+    finalizeImportCertificateInput(input.ImportCertificateInput)
     return input.ImportCertificateInput, nil
 }
 {{ end }}
