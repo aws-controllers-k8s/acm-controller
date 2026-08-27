@@ -86,7 +86,7 @@ func testCertificatePEM(t *testing.T, serial int64) []byte {
 }
 
 func TestImportSecretRefsFromSpec(t *testing.T) {
-	ref := &ackv1alpha1.SecretReference{}
+	ref := &ackv1alpha1.TlsSecretReference{}
 	ref.Name = "tls-secret"
 
 	refs, err := importSecretRefsFromSpec(
@@ -108,7 +108,7 @@ func TestImportSecretRefsFromSpec(t *testing.T) {
 }
 
 func TestValidateImportFromExclusivity(t *testing.T) {
-	importFrom := &ackv1alpha1.SecretReference{}
+	importFrom := &ackv1alpha1.TlsSecretReference{}
 	importFrom.Name = "tls-secret"
 	domainName := "example.com"
 	certificate := &ackv1alpha1.SecretKeyReference{Key: "certificate"}
@@ -202,7 +202,7 @@ func TestSyncImportFromSecretIfNeededAlreadySynced(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	importFrom := &ackv1alpha1.SecretReference{}
+	importFrom := &ackv1alpha1.TlsSecretReference{}
 	importFrom.Name = "tls-secret"
 	arn := ackv1alpha1.AWSResourceName("arn:aws:acm:region:account:certificate/id")
 	certificateType := string(svcapitypes.CertificateType_IMPORTED)
@@ -259,7 +259,7 @@ func TestSyncImportFromSecretIfNeededReimportsOnceAndRequeues(t *testing.T) {
 	if certificatesMatch(secretCertificate, acmCertificate) {
 		t.Fatal("test certificates must have different DER encodings")
 	}
-	importFrom := &ackv1alpha1.SecretReference{}
+	importFrom := &ackv1alpha1.TlsSecretReference{}
 	importFrom.Name = "tls-secret"
 	arn := ackv1alpha1.AWSResourceName("arn:aws:acm:region:account:certificate/id")
 	certificateType := string(svcapitypes.CertificateType_IMPORTED)

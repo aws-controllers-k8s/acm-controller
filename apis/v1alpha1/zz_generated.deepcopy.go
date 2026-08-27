@@ -1496,7 +1496,7 @@ func (in *CertificateSpec) DeepCopyInto(out *CertificateSpec) {
 	}
 	if in.ImportFrom != nil {
 		in, out := &in.ImportFrom, &out.ImportFrom
-		*out = new(corev1alpha1.SecretReference)
+		*out = new(corev1alpha1.TlsSecretReference)
 		**out = **in
 	}
 	if in.KeyAlgorithm != nil {

@@ -78,7 +78,7 @@ type CertificateSpec struct {
 	// ACM import. Mutually exclusive with opaque secret import fields (certificate, privateKey,
 	// certificateChain) and certificate request fields. May be updated after creation. certificateARN
 	// may be set to replace an existing imported certificate.
-	ImportFrom *ackv1alpha1.SecretReference `json:"importFrom,omitempty"`
+	ImportFrom *ackv1alpha1.TlsSecretReference `json:"importFrom,omitempty"`
 	// Specifies the algorithm of the public and private key pair that your certificate
 	// uses to encrypt data. RSA is the default key algorithm for ACM certificates.
 	// Elliptic Curve Digital Signature Algorithm (ECDSA) keys are smaller, offering

@@ -97,7 +97,7 @@ resources:
           is_ignored: true
       ImportFrom:
         type: "bytes"
-        is_secret_reference: true
+        is_tls_secret: true
         compare:
           is_ignored: true
       DomainName:
