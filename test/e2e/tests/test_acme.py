@@ -188,7 +188,7 @@ def acme_domain_validation(request, acme_endpoint) -> Tuple[k8s.CustomResourceRe
     replacements = REPLACEMENT_VALUES.copy()
     replacements['ACME_DOMAIN_VALIDATION_NAME'] = validation_name
     replacements['ACME_ENDPOINT_ARN'] = endpoint_arn
-    replacements['DOMAIN_NAME'] = 'example.com'
+    replacements['DOMAIN_NAME'] = 'example.people.amazon.dev'
 
     resource_data = load_resource(
         "acme_domain_validation",

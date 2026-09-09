@@ -6,7 +6,7 @@ require (
 	github.com/aws-controllers-k8s/acmpca-controller v0.0.17
 	github.com/aws-controllers-k8s/iam-controller v1.8.0
 	github.com/aws-controllers-k8s/route53-controller v1.4.4
-	github.com/aws-controllers-k8s/runtime v0.62.0
+	github.com/aws-controllers-k8s/runtime v0.63.0
 	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/service/acm v1.42.0
 	github.com/aws/smithy-go v1.27.3
