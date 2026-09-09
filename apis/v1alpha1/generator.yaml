@@ -267,6 +267,7 @@ resources:
         - InvalidTagException
         - TagPolicyException
         - TooManyTagsException
+        - ValidationException
     reconcile:
       requeue_on_success_seconds: 30
     synced:
@@ -329,6 +330,7 @@ resources:
         - InvalidTagException
         - TagPolicyException
         - TooManyTagsException
+        - ValidationException
     # Treat a domain validation as a point-in-time health check, not a resource
     # with a terminal state:
     #   VALID    -> Synced=True, re-checked at the controller resync period
@@ -424,6 +426,7 @@ resources:
         - InvalidTagException
         - TagPolicyException
         - TooManyTagsException
+        - ValidationException
     # A short requeue keeps the server-side status fields (lastUsedAt, revokedAt,
     # expiresAt) close to reality, since the service changes them without any spec edit
     # to trigger a reconcile. Same interval as Certificate above; AcmeEndpoint uses 30s.

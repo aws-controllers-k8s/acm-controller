@@ -591,7 +591,8 @@ func (rm *resourceManager) terminalAWSError(err error) bool {
 		"InvalidArnException",
 		"InvalidTagException",
 		"TagPolicyException",
-		"TooManyTagsException":
+		"TooManyTagsException",
+		"ValidationException":
 		return true
 	default:
 		return false

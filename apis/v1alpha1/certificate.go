@@ -79,11 +79,11 @@ type CertificateSpec struct {
 	//
 	// Algorithms supported for an ACM certificate request include:
 	//
-	//   - RSA_2048
+	//    * RSA_2048
 	//
-	//   - EC_prime256v1
+	//    * EC_prime256v1
 	//
-	//   - EC_secp384r1
+	//    * EC_secp384r1
 	//
 	// Other listed algorithms are for imported certificates only.
 	//
@@ -124,17 +124,16 @@ type CertificateSpec struct {
 	// multiple labels separated by periods. No label can be longer than 63 octets.
 	// Consider the following examples:
 	//
-	//   - (63 octets).(63 octets).(63 octets).(61 octets) is legal because the
-	//     total length is 253 octets (63+1+63+1+63+1+61) and no label exceeds 63
-	//     octets.
+	//    * (63 octets).(63 octets).(63 octets).(61 octets) is legal because the
+	//    total length is 253 octets (63+1+63+1+63+1+61) and no label exceeds 63
+	//    octets.
 	//
-	//   - (64 octets).(63 octets).(63 octets).(61 octets) is not legal because
-	//     the total length exceeds 253 octets (64+1+63+1+63+1+61) and the first
-	//     label exceeds 63 octets.
+	//    * (64 octets).(63 octets).(63 octets).(61 octets) is not legal because
+	//    the total length exceeds 253 octets (64+1+63+1+63+1+61) and the first
+	//    label exceeds 63 octets.
 	//
-	//   - (63 octets).(63 octets).(63 octets).(62 octets) is not legal because
-	//     the total length of the DNS name (63+1+63+1+63+1+62) exceeds 253 octets.
-	//
+	//    * (63 octets).(63 octets).(63 octets).(62 octets) is not legal because
+	//    the total length of the DNS name (63+1+63+1+63+1+62) exceeds 253 octets.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	SubjectAlternativeNames []*string `json:"subjectAlternativeNames,omitempty"`
 	// One or more resource tags to associate with the certificate.

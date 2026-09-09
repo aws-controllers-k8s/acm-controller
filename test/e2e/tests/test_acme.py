@@ -41,6 +41,8 @@ CREATE_EAB_WAIT_SECONDS = 65
 UPDATE_WAIT_SECONDS = 35
 # A credential repair happens on the resource's next read, so allow for more than one requeue
 REPAIR_WAIT_SECONDS = 120
+# ACM ACME only lets internal AWS accounts validate .people.aws.dev subdomains
+DOMAIN_VALIDATION_PARENT_DOMAIN = 'people.aws.dev'
 
 
 def _aws_resource_tags(acm_client, resource_arn: str) -> Dict[str, str]:
@@ -184,11 +186,12 @@ def acme_domain_validation(request, acme_endpoint) -> Tuple[k8s.CustomResourceRe
     endpoint_arn = endpoint_cr["status"]["ackResourceMetadata"]["arn"]
 
     validation_name = random_suffix_name("acme-dv", 20)
+    domain_name = f"{validation_name}.{DOMAIN_VALIDATION_PARENT_DOMAIN}"
 
     replacements = REPLACEMENT_VALUES.copy()
     replacements['ACME_DOMAIN_VALIDATION_NAME'] = validation_name
     replacements['ACME_ENDPOINT_ARN'] = endpoint_arn
-    replacements['DOMAIN_NAME'] = 'example.com'
+    replacements['DOMAIN_NAME'] = domain_name
 
     resource_data = load_resource(
         "acme_domain_validation",
@@ -240,8 +243,8 @@ class TestAcmeDomainValidation:
     def test_create_delete(self, acme_domain_validation, acm_client):
         (ref, cr) = acme_domain_validation
 
-        # Poll until the validation settles. example.com cannot be validated,
-        # so it lands INVALID.
+        # Poll until the validation settles. The domain has no DNS records, so
+        # it lands INVALID.
         status = _wait_for_settled_dv_status(ref)
 
         # Re-read to get updated status
@@ -291,8 +294,8 @@ class TestAcmeDomainValidation:
         time.sleep(UPDATE_WAIT_SECONDS)
 
         # The update should reconcile fully and the validation should settle
-        # again (INVALID for example.com). Note ACK.ResourceSynced is only True
-        # for VALID, so we poll the status instead of the condition.
+        # again (INVALID). Note ACK.ResourceSynced is only True for VALID, so we
+        # poll the status instead of the condition.
         _wait_for_settled_dv_status(ref)
 
         # Verify against AWS. The describe response reports the effective
