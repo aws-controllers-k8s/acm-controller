@@ -41,6 +41,41 @@ DELETE_WAIT_AFTER_SECONDS = 30
 MAX_WAIT_FOR_SYNCED_MINUTES = 1
 
 
+def cleanup_certificate_resource(
+        ref: k8s.CustomResourceReference,
+        fallback_arn: str = None,
+        secret_name: str = None,
+) -> None:
+    cleanup_errors = []
+    certificate_arn = fallback_arn
+    try:
+        if k8s.get_resource_exists(ref):
+            latest = k8s.get_resource(ref)
+            certificate_arn = latest.get('status', {}).get(
+                'ackResourceMetadata', {},
+            ).get('arn', certificate_arn)
+            _, deleted = k8s.delete_custom_resource(ref, 3, 10)
+            if not deleted:
+                raise AssertionError("certificate resource was not deleted")
+    except Exception as error:
+        cleanup_errors.append(f"custom resource cleanup failed: {error}")
+
+    try:
+        if certificate_arn is not None:
+            certificate.wait_until_deleted(certificate_arn)
+    except Exception as error:
+        cleanup_errors.append(f"ACM certificate cleanup failed: {error}")
+
+    if secret_name is not None:
+        try:
+            k8s.delete_secret('default', secret_name)
+        except Exception as error:
+            cleanup_errors.append(f"Secret cleanup failed: {error}")
+
+    if cleanup_errors:
+        pytest.fail("; ".join(cleanup_errors))
+
+
 @pytest.fixture
 def certificate_public(request) -> Tuple[k8s.CustomResourceReference, Dict]:
     certificate_name = random_suffix_name("certificate", 20)
@@ -70,13 +105,10 @@ def certificate_public(request) -> Tuple[k8s.CustomResourceReference, Dict]:
 
     yield (ref, cr)
 
-    # Try to delete, if doesn't already exist
-    try:
-        _, deleted = k8s.delete_custom_resource(ref, 3, 10)
-        assert deleted
-        certificate.wait_until_deleted(cr["status"]["ackResourceMetadata"]["arn"])
-    except:
-        pass
+    certificate_arn = cr.get('status', {}).get(
+        'ackResourceMetadata', {},
+    ).get('arn')
+    cleanup_certificate_resource(ref, certificate_arn)
 
 
 @pytest.fixture
@@ -116,13 +148,10 @@ def certificate_import() -> Tuple[k8s.CustomResourceReference, Dict]:
 
     yield ref, cr
 
-    try:
-        _, deleted = k8s.delete_custom_resource(ref, 3, 10)
-        assert deleted
-        certificate.wait_until_deleted(cr['status']['ackResourceMetadata']['arn'])
-        k8s.delete_secret('default', certificate_name)
-    except:
-        pass
+    certificate_arn = cr.get('status', {}).get(
+        'ackResourceMetadata', {},
+    ).get('arn')
+    cleanup_certificate_resource(ref, certificate_arn, certificate_name)
 
 
 @service_marker
@@ -412,6 +441,192 @@ class TestCertificate:
         time.sleep(DELETE_WAIT_AFTER_SECONDS)
         certificate.wait_until_deleted(new_arn)
 
+    def test_import_from_tls_secret(
+            self,
+            certificate_import_from_tls,
+    ):
+        (ref, cr) = certificate_import_from_tls
+        assert k8s.wait_on_condition(
+            ref,
+            condition.CONDITION_TYPE_RESOURCE_SYNCED,
+            "True",
+            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
+        )
+        assert k8s.get_resource_condition(ref, condition.CONDITION_TYPE_TERMINAL) is None
+
+        cr = k8s.get_resource(ref)
+        assert 'status' in cr
+        status = cr['status']
+        assert 'ackResourceMetadata' in status
+        assert 'arn' in status['ackResourceMetadata']
+        certificate_arn = status['ackResourceMetadata']['arn']
+        assert status['type_'] == 'IMPORTED'
+        assert status['status'] == 'ISSUED'
+        assert status['subject'] == 'O=ACK,CN=services.k8s.aws'
+
+        assert cr['spec'].get('importFrom') == {'name': ref.name}
+        assert certificate.get(certificate_arn) is not None
+
+    def test_import_from_tls_reimport_after_external_delete(
+            self,
+            certificate_import_from_tls,
+    ):
+        (ref, cr) = certificate_import_from_tls
+        assert k8s.wait_on_condition(
+            ref,
+            condition.CONDITION_TYPE_RESOURCE_SYNCED,
+            "True",
+            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
+        )
+
+        cr = k8s.get_resource(ref)
+        original_arn = cr['status']['ackResourceMetadata']['arn']
+        assert cr['status']['type_'] == 'IMPORTED'
+        assert cr['spec'].get('importFrom') == {'name': ref.name}
+
+        certificate.delete(original_arn)
+        certificate.wait_until_deleted(original_arn)
+
+        time.sleep(CREATE_WAIT_AFTER_SECONDS)
+
+        assert k8s.wait_on_condition(
+            ref,
+            condition.CONDITION_TYPE_RESOURCE_SYNCED,
+            "True",
+            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES * 3,
+        )
+
+        cr = k8s.get_resource(ref)
+        new_arn = cr['status']['ackResourceMetadata']['arn']
+        assert new_arn != original_arn
+        assert cr['status']['type_'] == 'IMPORTED'
+        assert cr['spec'].get('importFrom') == {'name': ref.name}
+        aws_cert = certificate.get(new_arn)
+        assert aws_cert is not None
+        assert aws_cert['Type'] == 'IMPORTED'
+        assert aws_cert['Status'] == 'ISSUED'
+        assert aws_cert['Serial'] == cr['status']['serial']
+        assert certificate.get_body(new_arn) is not None
+
+    def test_import_from_tls_reimport_after_secret_rotation(
+            self,
+            certificate_import_from_tls,
+    ):
+        (ref, _) = certificate_import_from_tls
+        assert k8s.wait_on_condition(
+            ref,
+            condition.CONDITION_TYPE_RESOURCE_SYNCED,
+            "True",
+            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
+        )
+
+        cr = k8s.get_resource(ref)
+        certificate_arn = cr['status']['ackResourceMetadata']['arn']
+        original = certificate.get(certificate_arn)
+        original_serial = original['Serial']
+        original_body = certificate.get_body(certificate_arn)
+
+        replace_tls_import_secret('default', ref.name)
+
+        observed = None
+        for _ in range(MAX_WAIT_FOR_SYNCED_MINUTES * 18):
+            observed = certificate.get(certificate_arn)
+            observed_body = certificate.get_body(certificate_arn)
+            if observed is not None and observed_body != original_body:
+                break
+            time.sleep(10)
+
+        assert observed is not None
+        assert observed_body != original_body
+        assert observed['Serial'] != original_serial
+        cr = None
+        for _ in range(MAX_WAIT_FOR_SYNCED_MINUTES * 6):
+            cr = k8s.get_resource(ref)
+            if cr['status'].get('serial') == observed['Serial']:
+                break
+            time.sleep(10)
+
+        assert cr is not None
+        assert cr['status']['serial'] == observed['Serial']
+        assert k8s.wait_on_condition(
+            ref,
+            condition.CONDITION_TYPE_RESOURCE_SYNCED,
+            "True",
+            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
+        )
+        assert cr['status']['ackResourceMetadata']['arn'] == certificate_arn
+
 
 def k8s_client():
     return k8s._get_k8s_api_client()
+
+
+def create_tls_import_secret(
+        namespace: str,
+        name: str,
+        secret_type: str = 'kubernetes.io/tls',
+) -> None:
+    private_key, cert = create_x509_certificate(
+        'ACK', 'services.k8s.aws', 'acm.services.k8s.aws',
+    )
+    body = client.V1Secret()
+    body.data = {
+        'tls.key': base64.b64encode(private_key).decode('utf-8'),
+        'tls.crt': base64.b64encode(cert).decode('utf-8'),
+    }
+    body.metadata = {'name': name}
+    body.type = secret_type
+    api_client = k8s_client()
+    client.CoreV1Api(api_client).create_namespaced_secret(
+        namespace,
+        api_client.sanitize_for_serialization(body),
+    )
+
+
+def replace_tls_import_secret(namespace: str, name: str) -> None:
+    private_key, cert = create_x509_certificate(
+        'ACK', 'rotated.services.k8s.aws', 'acm.services.k8s.aws',
+    )
+    api_client = k8s_client()
+    secrets = client.CoreV1Api(api_client)
+    secret = secrets.read_namespaced_secret(name, namespace)
+    secret.data = {
+        'tls.key': base64.b64encode(private_key).decode('utf-8'),
+        'tls.crt': base64.b64encode(cert).decode('utf-8'),
+    }
+    secret.type = 'kubernetes.io/tls'
+    secrets.replace_namespaced_secret(name, namespace, secret)
+
+
+@pytest.fixture
+def certificate_import_from_tls() -> Tuple[k8s.CustomResourceReference, Dict]:
+    certificate_name = random_suffix_name("certificate-import-from", 30)
+    create_tls_import_secret('default', certificate_name, 'kubernetes.io/tls')
+
+    replacements = REPLACEMENT_VALUES.copy()
+    replacements['CERTIFICATE_NAME'] = certificate_name
+
+    resource_data = load_resource(
+        'certificate_import_from',
+        additional_replacements=replacements,
+    )
+
+    ref = k8s.CustomResourceReference(
+        CRD_GROUP, CRD_VERSION, RESOURCE_PLURAL,
+        certificate_name, namespace='default',
+    )
+    k8s.create_custom_resource(ref, resource_data)
+    cr = k8s.wait_resource_consumed_by_controller(ref)
+
+    assert cr is not None
+    assert k8s.get_resource_exists(ref)
+    assert cr['spec']['importFrom'] == {'name': certificate_name}
+
+    time.sleep(CREATE_WAIT_AFTER_SECONDS)
+
+    yield ref, cr
+
+    certificate_arn = cr.get('status', {}).get(
+        'ackResourceMetadata', {},
+    ).get('arn')
+    cleanup_certificate_resource(ref, certificate_arn, certificate_name)

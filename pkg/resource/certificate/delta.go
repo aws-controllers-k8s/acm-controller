@@ -43,6 +43,7 @@ func newResourceDelta(
 	}
 	compareCertificateIssuedAt(delta, a, b)
 	compareKeyAlgorithm(delta, a, b)
+	compareDomainName(delta, a, b)
 
 	if ackcompare.HasNilDifference(a.ko.Spec.CertificateARN, b.ko.Spec.CertificateARN) {
 		delta.Add("Spec.CertificateARN", a.ko.Spec.CertificateARN, b.ko.Spec.CertificateARN)
@@ -60,13 +61,6 @@ func newResourceDelta(
 	}
 	if !equality.Semantic.Equalities.DeepEqual(a.ko.Spec.CertificateAuthorityRef, b.ko.Spec.CertificateAuthorityRef) {
 		delta.Add("Spec.CertificateAuthorityRef", a.ko.Spec.CertificateAuthorityRef, b.ko.Spec.CertificateAuthorityRef)
-	}
-	if ackcompare.HasNilDifference(a.ko.Spec.DomainName, b.ko.Spec.DomainName) {
-		delta.Add("Spec.DomainName", a.ko.Spec.DomainName, b.ko.Spec.DomainName)
-	} else if a.ko.Spec.DomainName != nil && b.ko.Spec.DomainName != nil {
-		if *a.ko.Spec.DomainName != *b.ko.Spec.DomainName {
-			delta.Add("Spec.DomainName", a.ko.Spec.DomainName, b.ko.Spec.DomainName)
-		}
 	}
 	if ackcompare.HasNilDifference(a.ko.Spec.Options, b.ko.Spec.Options) {
 		delta.Add("Spec.Options", a.ko.Spec.Options, b.ko.Spec.Options)

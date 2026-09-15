@@ -53,6 +53,9 @@ operations:
     operation_type: DELETE
 resources:
   Certificate:
+    spec_validations:
+      - rule: "!has(self.importFrom) || (!has(self.certificate) && !has(self.certificateAuthorityARN) && !has(self.certificateAuthorityRef) && !has(self.certificateChain) && !has(self.domainName) && !has(self.domainValidationOptions) && !has(self.exportTo) && !has(self.keyAlgorithm) && !has(self.options) && !has(self.privateKey) && !has(self.subjectAlternativeNames))"
+        message: "importFrom cannot be set with certificate request, export, or opaque secret import fields"
     hooks:
       delta_pre_compare:
         template_path: hooks/certificate/delta_pre_compare.go.tpl
@@ -70,6 +73,8 @@ resources:
         template_path: hooks/certificate/sdk_file_end.go.tpl
       late_initialize_post_read_one:
         template_path: hooks/certificate/late_initialize_post_read_one.go.tpl
+      sdk_read_one_post_set_output:
+        template_path: hooks/certificate/sdk_read_one_post_set_output.go.tpl
     exceptions:
       errors:
         404:
@@ -90,10 +95,17 @@ resources:
         is_secret: true
         compare:
           is_ignored: true
+      ImportFrom:
+        type: "bytes"
+        is_secret_reference: true
+        compare:
+          is_ignored: true
       DomainName:
         is_primary_key: false
         is_required: false
         is_immutable: true
+        compare:
+          is_ignored: true
       Certificate:
         type: "bytes"
         is_secret: true
