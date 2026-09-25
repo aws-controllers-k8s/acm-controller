@@ -3,9 +3,9 @@ module github.com/aws-controllers-k8s/acm-controller
 go 1.26.0
 
 require (
-	github.com/aws-controllers-k8s/acmpca-controller v0.0.17
-	github.com/aws-controllers-k8s/iam-controller v1.8.0
-	github.com/aws-controllers-k8s/route53-controller v1.4.4
+	github.com/aws-controllers-k8s/acmpca-controller v1.5.1
+	github.com/aws-controllers-k8s/iam-controller v1.9.1
+	github.com/aws-controllers-k8s/route53-controller v1.6.1
 	github.com/aws-controllers-k8s/runtime v0.64.0
 	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/service/acm v1.42.0
@@ -20,7 +20,6 @@ require (
 )
 
 require (
-	github.com/aws/aws-sdk-go v1.49.6 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.28.6 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.47 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.21 // indirect
