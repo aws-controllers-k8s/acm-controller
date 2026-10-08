@@ -171,11 +171,8 @@ func (rm *resourceManager) resolveReferenceForAcmeEndpointARN(
 		if arr.Name == nil || *arr.Name == "" {
 			return hasReferences, fmt.Errorf("provided resource reference is nil or empty: AcmeEndpointRef")
 		}
-		namespace, err := ackrt.ResolveCrossNamespaceReference(
-			ctx,
+		namespace, _, err := ackrt.ValidateCrossNamespaceReference(
 			rm.cfg.EnableCrossNamespace,
-			&ko.Status.Conditions,
-			ackrt.CrossNamespaceRefKindResource,
 			ko.ObjectMeta.GetNamespace(),
 			arr.Namespace,
 			*arr.Name,
@@ -264,11 +261,8 @@ func (rm *resourceManager) resolveReferenceForPrevalidationOptions_DNSPrevalidat
 				if arr.Name == nil || *arr.Name == "" {
 					return hasReferences, fmt.Errorf("provided resource reference is nil or empty: PrevalidationOptions.DNSPrevalidation.HostedZoneRef")
 				}
-				namespace, err := ackrt.ResolveCrossNamespaceReference(
-					ctx,
+				namespace, _, err := ackrt.ValidateCrossNamespaceReference(
 					rm.cfg.EnableCrossNamespace,
-					&ko.Status.Conditions,
-					ackrt.CrossNamespaceRefKindResource,
 					ko.ObjectMeta.GetNamespace(),
 					arr.Namespace,
 					*arr.Name,
