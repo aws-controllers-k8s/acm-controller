@@ -6,8 +6,8 @@ github.com/aws-controllers-k8s/iam-controller v1.9.1 h1:BZ6VUBXwQgW6CRcgERD4DE0q
 github.com/aws-controllers-k8s/iam-controller v1.9.1/go.mod h1:qHPEVIJSKNPc4zFPPc3vGPh6Z+MfKzOcterRSyJKgoc=
 github.com/aws-controllers-k8s/route53-controller v1.6.1 h1:pHiPtZCeJjk/1Og5CSqSZgRLxzLBv6vcC/4yBNj83kU=
 github.com/aws-controllers-k8s/route53-controller v1.6.1/go.mod h1:Yh+6U8lNwHrDH1oEtWW1blkb9MN5cJm6mun0suMNdGA=
-github.com/aws-controllers-k8s/runtime v0.64.0 h1:fWoRgEcMewpcZDqHfu6jIItSRShkF5+er/Xz/B3EAko=
-github.com/aws-controllers-k8s/runtime v0.64.0/go.mod h1:U0E02HFCvRnLQplApOIeTPDBiRBKXjvyaRhb475bcGs=
+github.com/aws-controllers-k8s/runtime v0.65.0 h1:ivkpUUIRAKv3nW85i1jqoJXc65GUfrTxugbGd+Q4oC4=
+github.com/aws-controllers-k8s/runtime v0.65.0/go.mod h1:U0E02HFCvRnLQplApOIeTPDBiRBKXjvyaRhb475bcGs=
 github.com/aws/aws-sdk-go-v2 v1.42.1 h1:9eOTgu1z/dVtYpNZ3/8/XbbaX0x/BqE3HUzAzs6K0ek=
 github.com/aws/aws-sdk-go-v2 v1.42.1/go.mod h1:5pKeft2eJj+gElQ38Jqg4ibCqh+/AK33/0X3hip7IjM=
 github.com/aws/aws-sdk-go-v2/config v1.28.6 h1:D89IKtGrs/I3QXOLNTH93NJYtDhm8SYa9Q5CsPShmyo=
