@@ -22,7 +22,6 @@ import (
 	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	ackrequeue "github.com/aws-controllers-k8s/runtime/pkg/requeue"
 	ackrt "github.com/aws-controllers-k8s/runtime/pkg/runtime"
-	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 
 	svcapitypes "github.com/aws-controllers-k8s/acm-controller/apis/v1alpha1"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/acm"
@@ -82,8 +81,7 @@ func (rm *resourceManager) storeEABCredentials(
 		// written there even with --enable-cross-namespace=false. Reported in review.
 		name = ko.Spec.CredentialsOutput.Name
 		var err error
-		var isCrossNamespace bool
-		namespace, isCrossNamespace, err = ackrt.ValidateCrossNamespaceReferenceString(
+		namespace, _, err = ackrt.ValidateCrossNamespaceReferenceString(
 			rm.cfg.EnableCrossNamespace,
 			ko.Namespace,
 			ko.Spec.CredentialsOutput.Namespace,
@@ -94,29 +92,6 @@ func (rm *resourceManager) storeEABCredentials(
 			// of retrying changes that. The user must move the Secret or the operator must
 			// enable the flag.
 			return ackerr.NewTerminalError(err)
-		}
-		if isCrossNamespace {
-			// Logged AND surfaced on the resource. The runtime does this for reads via
-			// SetCrossNamespaceOptInRequiredOnSubject; a write of a credential deserves at
-			// least as much visibility, and a controller log nobody reads is not visibility.
-			// Someone inspecting the binding should be able to see that its MAC key is being
-			// placed in a namespace other than its own.
-			rlog := ackrtlog.FromContext(ctx)
-			rlog.Info(
-				"writing external account binding credentials to a Secret in another namespace; "+
-					"this behaviour is deprecated in the ACK runtime and will be disabled by default",
-				"ownerNamespace", ko.Namespace,
-				"secretNamespace", ko.Spec.CredentialsOutput.Namespace,
-				"secretName", name,
-			)
-			if cm := ackrt.ConditionManagerFromContext(ctx); cm != nil {
-				ackrt.SetCrossNamespaceOptInRequiredOnSubject(cm, fmt.Sprintf(
-					"Cross-namespace credentials write: this external account binding in namespace %q "+
-						"writes its MAC key to Secret %q in namespace %q. Cross-namespace behaviour "+
-						"will be disabled by default in a future release.",
-					ko.Namespace, name, ko.Spec.CredentialsOutput.Namespace,
-				))
-			}
 		}
 		// The target Secret's TYPE is validated here for the same reason its namespace is:
 		// rr.WriteToSecret checks neither, while the read path accepts only Opaque. Writing the

@@ -22,9 +22,7 @@ import (
 
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
-	ackcfg "github.com/aws-controllers-k8s/runtime/pkg/config"
 	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
-	ackrt "github.com/aws-controllers-k8s/runtime/pkg/runtime"
 	acktypes "github.com/aws-controllers-k8s/runtime/pkg/types"
 
 	svcapitypes "github.com/aws-controllers-k8s/acm-controller/apis/v1alpha1"
@@ -219,69 +217,6 @@ func TestStoreCredentialsRefusesCrossNamespaceWriteUnlessEnabled(t *testing.T) {
 			}
 		}()
 		_ = rm.storeEABCredentials(context.Background(), eab)
-	})
-}
-
-// fakeConditionManager is the two-method interface the runtime uses to put conditions on the
-// resource being reconciled.
-type fakeConditionManager struct {
-	conds []*ackv1alpha1.Condition
-}
-
-func (f *fakeConditionManager) Conditions() []*ackv1alpha1.Condition { return f.conds }
-
-func (f *fakeConditionManager) ReplaceConditions(c []*ackv1alpha1.Condition) { f.conds = c }
-
-// When a cross-namespace credentials write IS permitted, it must be visible on the resource and not
-// only in the controller's log. A MAC key leaving its own namespace is something whoever inspects
-// the binding should be able to see, and a log line is not an API.
-//
-// As above, sdkapi is nil: the condition is set before the credentials fetch, so the recovered panic
-// marks the boundary between "decided locally" and "called AWS".
-func TestCrossNamespaceWriteIsSurfacedOnTheResource(t *testing.T) {
-	arn := ackv1alpha1.AWSResourceName(
-		"arn:aws:acm:us-east-1:111122223333:acme-endpoint/e/acme-external-account-binding/b")
-
-	// NAMED return: the deferred recover below means an unnamed return would hand back nil.
-	run := func(t *testing.T, secretNamespace string) (cm *fakeConditionManager) {
-		t.Helper()
-		cm = &fakeConditionManager{}
-		// EnableCrossNamespace: the operator has opted in, so the write proceeds.
-		rm := &resourceManager{rr: &fakeReconciler{}, cfg: ackcfg.Config{EnableCrossNamespace: true}}
-		eab := eabWithOutput("app", secretNamespace)
-		eab.Status.ACKResourceMetadata = &ackv1alpha1.ResourceMetadata{ARN: &arn}
-		ctx := ackrt.WithConditionManager(context.Background(), cm)
-		defer func() { _ = recover() }()
-		_ = rm.storeEABCredentials(ctx, eab)
-		return cm
-	}
-
-	t.Run("cross-namespace sets an advisory naming both namespaces", func(t *testing.T) {
-		cm := run(t, "cert-manager")
-		var found *ackv1alpha1.Condition
-		for _, c := range cm.Conditions() {
-			if c.Reason != nil && *c.Reason == ackrt.CrossNamespaceOptInRequiredReason {
-				found = c
-			}
-		}
-		if found == nil {
-			t.Fatalf("a permitted cross-namespace write must be surfaced on the resource, got %d conditions", len(cm.Conditions()))
-		}
-		msg := ""
-		if found.Message != nil {
-			msg = *found.Message
-		}
-		for _, want := range []string{"app", "cert-manager", "eab-creds"} {
-			if !strings.Contains(msg, want) {
-				t.Fatalf("the condition must name %q so it is actionable, got %q", want, msg)
-			}
-		}
-	})
-
-	t.Run("same namespace sets no condition", func(t *testing.T) {
-		if cm := run(t, ""); len(cm.Conditions()) != 0 {
-			t.Fatalf("an in-namespace write is unremarkable and must not add a condition, got %v", cm.Conditions())
-		}
 	})
 }
 
