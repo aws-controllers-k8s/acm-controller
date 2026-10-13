@@ -41,7 +41,7 @@ func newResourceDelta(
 		delta.Add("", a, b)
 		return delta
 	}
-	compareCertificateIssuedAt(delta, a, b)
+	compareExportedSerial(delta, a, b)
 	compareKeyAlgorithm(delta, a, b)
 
 	if ackcompare.HasNilDifference(a.ko.Spec.CertificateARN, b.ko.Spec.CertificateARN) {

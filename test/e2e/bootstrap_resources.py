@@ -22,6 +22,7 @@ import boto3
 
 from acktest import resources
 from acktest.bootstrapping import Bootstrappable, Resources
+from acktest.bootstrapping.acmpca import PrivateCertificateAuthority
 from e2e import bootstrap_directory
 
 # The IAM role associated with an external account binding. The ACME service
@@ -111,6 +112,7 @@ class EABIssuanceRole(Bootstrappable):
 @dataclass
 class BootstrapResources(Resources):
     EABRole: EABIssuanceRole = field(default=None)
+    PrivateCA: PrivateCertificateAuthority = field(default=None)
 
 _bootstrap_resources = None
 

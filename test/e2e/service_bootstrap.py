@@ -15,6 +15,7 @@
 import logging
 
 from acktest.bootstrapping import Resources, BootstrapFailureException
+from acktest.bootstrapping.acmpca import PrivateCertificateAuthority
 
 from e2e import bootstrap_directory
 from e2e.bootstrap_resources import BootstrapResources, EABIssuanceRole
@@ -24,6 +25,10 @@ def service_bootstrap() -> Resources:
 
     resources = BootstrapResources(
         EABRole=EABIssuanceRole(name_prefix="ack-acm-eab-role"),
+        PrivateCA=PrivateCertificateAuthority(
+            name_prefix="ack-acm-e2e-ca",
+            allow_acm_renewal=True,
+        ),
     )
 
     try:

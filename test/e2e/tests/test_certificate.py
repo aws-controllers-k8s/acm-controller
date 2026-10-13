@@ -16,6 +16,7 @@
 
 import time
 import base64
+import boto3
 import pytest
 
 from typing import Dict, Tuple
@@ -26,6 +27,7 @@ from e2e import service_marker, CRD_GROUP, CRD_VERSION, load_resource
 from e2e.replacement_values import REPLACEMENT_VALUES
 from e2e import certificate
 from e2e.x509 import create_x509_certificate
+from e2e.bootstrap_resources import get_bootstrap_resources
 from acktest import tags
 
 RESOURCE_PLURAL = 'certificates'
@@ -39,6 +41,11 @@ DELETE_WAIT_AFTER_SECONDS = 30
 
 # Time we wait for the certificate to get to ACK.ResourceSynced=True
 MAX_WAIT_FOR_SYNCED_MINUTES = 1
+
+EXPORTED_SERIAL_ANNOTATION = "acm.services.k8s.aws/exported-serial"
+MAX_WAIT_FOR_EXPORT_SECONDS = 60*5
+MAX_WAIT_FOR_RENEWAL_SECONDS = 60*10
+WAIT_INTERVAL_SECONDS = 10
 
 
 @pytest.fixture
@@ -120,6 +127,54 @@ def certificate_import() -> Tuple[k8s.CustomResourceReference, Dict]:
         _, deleted = k8s.delete_custom_resource(ref, 3, 10)
         assert deleted
         certificate.wait_until_deleted(cr['status']['ackResourceMetadata']['arn'])
+        k8s.delete_secret('default', certificate_name)
+    except:
+        pass
+
+
+@pytest.fixture
+def certificate_private_export() -> Tuple[k8s.CustomResourceReference, Dict]:
+    certificate_name = random_suffix_name("certificate-export", 30)
+    body = client.V1Secret()
+    body.data = {'tls.crt': '', 'tls.key': ''}
+    body.metadata = {'name': certificate_name}
+    body.type = 'kubernetes.io/tls'
+    api_client = k8s_client()
+    client.CoreV1Api(api_client).create_namespaced_secret('default', api_client.sanitize_for_serialization(body))
+
+    replacements = REPLACEMENT_VALUES.copy()
+    replacements['CERTIFICATE_NAME'] = certificate_name
+    replacements['DOMAIN_NAME'] = certificate_name + '.ack-e2e.example.com'
+    replacements['CERTIFICATE_AUTHORITY_ARN'] = get_bootstrap_resources().PrivateCA.arn
+
+    resource_data = load_resource(
+        'certificate_private_export',
+        additional_replacements=replacements,
+    )
+
+    ref = k8s.CustomResourceReference(
+        CRD_GROUP, CRD_VERSION, RESOURCE_PLURAL,
+        certificate_name, namespace='default',
+    )
+    try:
+        k8s.create_custom_resource(ref, resource_data)
+        cr = k8s.wait_resource_consumed_by_controller(ref)
+    except:
+        k8s.delete_secret('default', certificate_name)
+        raise
+
+    assert cr is not None
+    assert k8s.get_resource_exists(ref)
+
+    yield ref, cr
+
+    try:
+        _, deleted = k8s.delete_custom_resource(ref, 3, 10)
+        assert deleted
+        certificate.wait_until_deleted(cr['status']['ackResourceMetadata']['arn'])
+    except:
+        pass
+    try:
         k8s.delete_secret('default', certificate_name)
     except:
         pass
@@ -412,6 +467,56 @@ class TestCertificate:
         time.sleep(DELETE_WAIT_AFTER_SECONDS)
         certificate.wait_until_deleted(new_arn)
 
+    def test_export_private_certificate(
+            self,
+            certificate_private_export,
+    ):
+        (ref, _) = certificate_private_export
+
+        cr = wait_until_exported(ref, MAX_WAIT_FOR_EXPORT_SECONDS)
+        certificate_arn = cr['status']['ackResourceMetadata']['arn']
+        issued_serial = cr['status']['serial']
+        assert cr['metadata']['annotations'][EXPORTED_SERIAL_ANNOTATION] == issued_serial
+        assert k8s.wait_on_condition(
+            ref,
+            condition.CONDITION_TYPE_RESOURCE_SYNCED,
+            "True",
+            wait_periods=MAX_WAIT_FOR_SYNCED_MINUTES,
+        )
+
+        exported_crt, exported_key = get_exported_secret(ref.name)
+        assert '-----BEGIN CERTIFICATE-----' in exported_crt
+        assert 'PRIVATE KEY-----' in exported_key
+
+        boto3.client('acm').renew_certificate(CertificateArn=certificate_arn)
+        cr = wait_until_exported(ref, MAX_WAIT_FOR_RENEWAL_SECONDS, previous_serial=issued_serial)
+        renewed_serial = cr['status']['serial']
+        assert renewed_serial != issued_serial
+        assert cr['metadata']['annotations'][EXPORTED_SERIAL_ANNOTATION] == renewed_serial
+
+        renewed_crt, renewed_key = get_exported_secret(ref.name)
+        assert renewed_crt != exported_crt
+        assert 'PRIVATE KEY-----' in renewed_key
+
+
+def wait_until_exported(ref, timeout_seconds, previous_serial=None):
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        cr = k8s.get_resource(ref)
+        serial = cr.get('status', {}).get('serial')
+        exported = cr['metadata'].get('annotations', {}).get(EXPORTED_SERIAL_ANNOTATION)
+        if serial and serial != previous_serial and exported == serial:
+            return cr
+        time.sleep(WAIT_INTERVAL_SECONDS)
+    pytest.fail(f"certificate {ref.name} was not exported before timeout")
+
+
+def get_exported_secret(name):
+    secret = client.CoreV1Api(k8s_client()).read_namespaced_secret(name, 'default')
+    return (
+        base64.b64decode(secret.data['tls.crt']).decode('utf-8'),
+        base64.b64decode(secret.data['tls.key']).decode('utf-8'),
+    )
 
 def k8s_client():
     return k8s._get_k8s_api_client()

@@ -25,6 +25,7 @@ import (
 	"io"
 	"strings"
 
+	svcapitypes "github.com/aws-controllers-k8s/acm-controller/apis/v1alpha1"
 	"github.com/aws-controllers-k8s/acm-controller/pkg/tags"
 	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
@@ -222,8 +223,6 @@ func (rm *resourceManager) exportCertificate(
 		}
 	}
 
-	// No need to update secret annotations since we're now tracking IssuedAt changes
-	// in the template logic using the Certificate object's Status field
 	return nil
 }
 
@@ -285,23 +284,34 @@ func compareKeyAlgorithm(
 	}
 }
 
-func compareCertificateIssuedAt(
+// compareExportedSerial adds a delta when the issued certificate's serial
+// differs from the serial last exported to spec.exportTo, covering both the
+// first issuance and every renewal.
+func compareExportedSerial(
 	delta *ackcompare.Delta,
 	a *resource,
 	b *resource,
 ) {
-	if a.ko.Spec.ExportTo != nil {
-		// NOTE: first time the certificate is issued
-		if a.ko.Status.IssuedAt == nil && b.ko.Status.Status != nil && *b.ko.Status.Status == "ISSUED" {
-			// NOTE: ack runtime ONLY goes into update if delta key starts with "Spec"
-			// https://github.com/aws-controllers-k8s/runtime/blob/main/pkg/runtime/reconciler.go#L894-L903
-			delta.Add("Spec.Status.IssuedAt", a.ko.Status.IssuedAt, b.ko.Status.IssuedAt)
-		}
-		// NOTE: when the certificate is renewed
-		if a.ko.Status.Serial != nil && b.ko.Status.Serial != nil && *a.ko.Status.Serial != *b.ko.Status.Serial {
-			// NOTE: ack runtime ONLY goes into update if delta key starts with "Spec"
-			// https://github.com/aws-controllers-k8s/runtime/blob/main/pkg/runtime/reconciler.go#L894-L903
-			delta.Add("Spec.Status.Serial", a.ko.Status.Serial, b.ko.Status.Serial)
-		}
+	if a.ko.Spec.ExportTo == nil ||
+		b.ko.Status.Status == nil ||
+		*b.ko.Status.Status != string(svcapitypes.CertificateStatus_SDK_ISSUED) ||
+		b.ko.Status.Serial == nil {
+		return
 	}
+	exported := a.ko.GetAnnotations()[svcapitypes.ExportedSerialAnnotation]
+	if exported != *b.ko.Status.Serial {
+		// NOTE: ack runtime ONLY goes into update if delta key starts with "Spec"
+		delta.Add("Spec.Status.Serial", exported, *b.ko.Status.Serial)
+	}
+}
+
+// setExportedSerial records serial as the last serial exported to
+// spec.exportTo.
+func setExportedSerial(ko *svcapitypes.Certificate, serial string) {
+	annotations := ko.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+	annotations[svcapitypes.ExportedSerialAnnotation] = serial
+	ko.SetAnnotations(annotations)
 }
