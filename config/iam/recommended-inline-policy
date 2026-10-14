@@ -6,6 +6,7 @@
             "Effect": "Allow",
             "Action": [
                 "acm:DescribeCertificate",
+                "acm:GetCertificate",
                 "acm:ImportCertificate",
                 "acm:RequestCertificate",
                 "acm:UpdateCertificateOptions",

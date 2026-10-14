@@ -3,16 +3,32 @@ resources:
     fields:
       Certificate:
         prepend: |
-          The Certificate to import into AWS Certificate Manager (ACM) to use with services that are integrated with ACM.
-          This field is only valid when importing an existing certificate into ACM.
+          Opaque secret import field. Reference to a Kubernetes Secret key containing the leaf certificate PEM to
+          import into ACM. Requires privateKey. Mutually exclusive with importFrom and certificate request
+          fields. If the PEM contains multiple certificate blocks, the controller splits leaf and
+          intermediate certificates automatically. Immutable once set.
       PrivateKey:
         prepend: |
-          The private key that matches the public key in the certificate. This field is only valid when importing
-          an existing certificate into ACM.
+          Opaque secret import field. Reference to a Kubernetes Secret key containing the private key PEM that
+          matches certificate. Required when certificate is set. Mutually exclusive with importFrom and
+          certificate request fields. Immutable once set.
+      CertificateChain:
+        prepend: |
+          Opaque secret import field. Optional reference to a Kubernetes Secret key containing intermediate
+          certificate PEMs. Use when the chain is stored separately from certificate. Mutually exclusive
+          with importFrom and certificate request fields. Immutable once set.
       CertificateARN:
         prepend: |
-          The Amazon Resource Name (ARN) of an imported certificate to replace. This field is only valid when importing
-          an existing certificate into ACM.
+          The Amazon Resource Name (ARN) of an imported certificate to replace. Valid with opaque secret
+          import (certificate/privateKey) or importFrom. Immutable once set.
+      ImportFrom:
+        prepend: |
+          Reference to an existing Kubernetes TLS Secret to import into ACM. The certificate PEM is read from
+          tls.crt and the private key is read from tls.key in the Secret. If tls.crt contains multiple PEM
+          blocks (leaf certificate followed by intermediate certificates), they are automatically split for
+          ACM import. Mutually exclusive with opaque secret import fields (certificate, privateKey,
+          certificateChain) and certificate request fields. May be updated after creation. certificateARN
+          may be set to replace an existing imported certificate.
 
   AcmeEndpoint:
     fields:

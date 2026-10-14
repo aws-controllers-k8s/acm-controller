@@ -41,8 +41,10 @@ spec:
             properties:
               certificate:
                 description: |-
-                  The Certificate to import into AWS Certificate Manager (ACM) to use with services that are integrated with ACM.
-                  This field is only valid when importing an existing certificate into ACM.
+                  Opaque secret import field. Reference to a Kubernetes Secret key containing the leaf certificate PEM to
+                  import into ACM. Requires privateKey. Mutually exclusive with importFrom and certificate request
+                  fields. If the PEM contains multiple certificate blocks, the controller splits leaf and
+                  intermediate certificates automatically. Immutable once set.
                 properties:
                   key:
                     description: Key is the key within the secret
@@ -64,8 +66,8 @@ spec:
                   rule: self == oldSelf
               certificateARN:
                 description: |-
-                  The Amazon Resource Name (ARN) of an imported certificate to replace. This field is only valid when importing
-                  an existing certificate into ACM.
+                  The Amazon Resource Name (ARN) of an imported certificate to replace. Valid with opaque secret
+                  import (certificate/privateKey) or importFrom. Immutable once set.
                 type: string
                 x-kubernetes-validations:
                 - message: Value is immutable once set
@@ -105,8 +107,9 @@ spec:
                 type: object
               certificateChain:
                 description: |-
-                  SecretKeyReference combines a k8s corev1.SecretReference with a
-                  specific key within the referred-to Secret
+                  Opaque secret import field. Optional reference to a Kubernetes Secret key containing intermediate
+                  certificate PEMs. Use when the chain is stored separately from certificate. Mutually exclusive
+                  with importFrom and certificate request fields. Immutable once set.
                 properties:
                   key:
                     description: Key is the key within the secret
@@ -185,6 +188,25 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable once set
                   rule: self == oldSelf
+              importFrom:
+                description: |-
+                  Reference to an existing Kubernetes TLS Secret to import into ACM. The certificate PEM is read from
+                  tls.crt and the private key is read from tls.key in the Secret. If tls.crt contains multiple PEM
+                  blocks (leaf certificate followed by intermediate certificates), they are automatically split for
+                  ACM import. Mutually exclusive with opaque secret import fields (certificate, privateKey,
+                  certificateChain) and certificate request fields. May be updated after creation. certificateARN
+                  may be set to replace an existing imported certificate.
+                properties:
+                  name:
+                    description: name is unique within a namespace to reference a
+                      secret resource.
+                    type: string
+                  namespace:
+                    description: namespace defines the space within which the secret
+                      name must be unique.
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
               keyAlgorithm:
                 description: |-
                   Specifies the algorithm of the public and private key pair that your certificate
@@ -244,8 +266,9 @@ spec:
                 type: object
               privateKey:
                 description: |-
-                  The private key that matches the public key in the certificate. This field is only valid when importing
-                  an existing certificate into ACM.
+                  Opaque secret import field. Reference to a Kubernetes Secret key containing the private key PEM that
+                  matches certificate. Required when certificate is set. Mutually exclusive with importFrom and
+                  certificate request fields. Immutable once set.
                 properties:
                   key:
                     description: Key is the key within the secret
@@ -308,6 +331,14 @@ spec:
                   type: object
                 type: array
             type: object
+            x-kubernetes-validations:
+            - message: importFrom cannot be set with certificate request, export,
+                or opaque secret import fields
+              rule: '!has(self.importFrom) || (!has(self.certificate) && !has(self.certificateAuthorityARN)
+                && !has(self.certificateAuthorityRef) && !has(self.certificateChain)
+                && !has(self.domainName) && !has(self.domainValidationOptions) &&
+                !has(self.exportTo) && !has(self.keyAlgorithm) && !has(self.options)
+                && !has(self.privateKey) && !has(self.subjectAlternativeNames))'
           status:
             description: CertificateStatus defines the observed state of Certificate
             properties:
