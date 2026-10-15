@@ -1,2 +1,2 @@
-compareCertificateIssuedAt(delta, a, b)
+compareExportedSerial(delta, a, b)
 compareKeyAlgorithm(delta, a, b)
