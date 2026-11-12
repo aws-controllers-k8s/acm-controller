@@ -19,10 +19,166 @@ The ACK service controller for AWS Certificate Manager is free of charge. If you
 [samples]: https://github.com/aws-controllers-k8s/acmpca-controller/tree/main/samples
 
 ### Kubernetes Secrets
-The ACK service controller for AWS Certificate Manager uses Kubernetes TLS Secrets to store the certificate chain and decrypted private key of the exported ACM certificate. Users are expected to create Secrets before creating Certificate resources. As these resources are created, the Secrets' `tls.crt` will be injected with the base64-encoded certificate and `tls.key` will be injected with the base64-encoded private key associated with the certificate. Users are responsible for deleting Secrets.
+The ACK service controller for AWS Certificate Manager uses Kubernetes TLS Secrets in two ways:
+
+* **Export** — write an ACM-issued certificate and private key into a Secret (`exportTo`).
+* **Import** — read an existing certificate and private key from a Secret and import them into ACM (`importFrom`, or opaque secret import via `certificate` / `privateKey`).
+
+For export, users are expected to create Secrets before creating Certificate resources. As these resources are created, the Secrets' `tls.crt` will be injected with the base64-encoded certificate and `tls.key` will be injected with the base64-encoded private key associated with the certificate. Users are responsible for deleting Secrets.
 
 In addition, after a certificate is successfully renewed by ACM, the ACK service controller for AWS Certificate Manager will automatically export the renewed certificate again so that the Kubernetes TLS Secret `exportTo` contains the certificate data and private key data of the renewed certificate.
 
+For import, the Secret must already contain valid PEM data in `tls.crt` (certificate) and `tls.key` (private key). If `tls.crt` contains multiple PEM blocks (leaf certificate followed by intermediate certificates), the controller automatically splits them for the ACM `ImportCertificate` API. Secrets may be type `Opaque` or `kubernetes.io/tls`.
+
+#### Import Certificate
+
+There are two ways to import an existing certificate into ACM from Kubernetes Secrets:
+
+| Approach | Fields | Best for |
+|----------|--------|----------|
+| **TLS secret import** | `importFrom` | Standard TLS Secrets (`tls.crt` / `tls.key`) |
+| **Opaque secret import** | `certificate`, `privateKey`, optional `certificateChain` | Custom secret keys or separate chain Secret |
+
+Both approaches call the ACM [ImportCertificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html) API. Imported certificates cannot be used with certificate request fields such as `domainName`, or with `exportTo`. After import, the controller may populate fields such as `domainName`, `keyAlgorithm`, and `tags` in the resource spec from ACM.
+
+##### Import with `importFrom`
+
+To import from a standard TLS Secret, specify the Secret using the `importFrom` field. This field is **exclusive** with certificate request, export, and opaque secret import fields (`domainName`, `exportTo`, `certificate`, `privateKey`, etc.) and may be updated after creation. Set `certificateARN` with `importFrom` to replace an existing imported certificate.
+
+```
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: my-tls-secret
+  namespace: demo-app
+data:
+  tls.crt: <base64-encoded-certificate-pem>
+  tls.key: <base64-encoded-private-key-pem>
+---
+apiVersion: acm.services.k8s.aws/v1alpha1
+kind: Certificate
+metadata:
+  name: imported-cert
+  namespace: demo-app
+spec:
+  importFrom:
+    name: my-tls-secret
+```
+
+To reference a Secret in a different namespace:
+
+```
+spec:
+  importFrom:
+    name: my-tls-secret
+    namespace: other-namespace
+```
+
+To replace an existing imported certificate at a known ARN:
+
+```
+spec:
+  importFrom:
+    name: my-tls-secret
+  certificateARN: arn:aws:acm:region:account:certificate/12345678-1234-1234-1234-123456789012
+```
+
+##### Opaque secret import
+
+Opaque secret import remains supported for backward compatibility. Set `certificate` to trigger import mode, and provide `privateKey` referencing the matching private key PEM. Each field is a `SecretKeyReference` with `name`, optional `namespace`, and `key` for the data entry within the Secret.
+
+Required fields:
+
+* **`certificate`** — secret reference to the leaf certificate PEM
+* **`privateKey`** — secret reference to the private key PEM
+
+Optional fields:
+
+* **`certificateChain`** — secret reference to intermediate certificate PEMs (when not included in the certificate PEM)
+* **`certificateARN`** — ARN of an existing imported certificate to replace
+* **`tags`** — tags to apply to the imported certificate
+
+Opaque secret import is **exclusive** with `importFrom`, certificate request fields (`domainName`, `domainValidationOptions`, etc.), and `exportTo`. It cannot be combined with `importFrom`.
+
+If the certificate PEM contains multiple PEM blocks (leaf followed by intermediates), the controller automatically splits them for the ACM import API, even when `certificateChain` is not set.
+
+```
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: my-import-secret
+  namespace: demo-app
+data:
+  tls.crt: <base64-encoded-certificate-pem>
+  tls.key: <base64-encoded-private-key-pem>
+---
+apiVersion: acm.services.k8s.aws/v1alpha1
+kind: Certificate
+metadata:
+  name: imported-cert-opaque
+  namespace: demo-app
+spec:
+  certificate:
+    name: my-import-secret
+    key: tls.crt
+  privateKey:
+    name: my-import-secret
+    key: tls.key
+  tags:
+    - key: environment
+      value: dev
+```
+
+Certificate and chain in separate Secrets:
+
+```
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: my-cert
+  namespace: demo-app
+data:
+  cert.pem: <base64-encoded-leaf-certificate-pem>
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: my-key
+  namespace: demo-app
+data:
+  key.pem: <base64-encoded-private-key-pem>
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: my-chain
+  namespace: demo-app
+data:
+  chain.pem: <base64-encoded-intermediate-pems>
+---
+apiVersion: acm.services.k8s.aws/v1alpha1
+kind: Certificate
+metadata:
+  name: imported-cert-opaque
+  namespace: demo-app
+spec:
+  certificate:
+    name: my-cert
+    key: cert.pem
+  privateKey:
+    name: my-key
+    key: key.pem
+  certificateChain:
+    name: my-chain
+    key: chain.pem
+```
+
+**Note:** Opaque secret import fields (`certificate`, `privateKey`, `certificateChain`) are immutable once set. For new deployments, prefer `importFrom` when importing from a standard TLS Secret.
 
 #### Export Certificate
 To export an ACM certificate to a Kubernetes TLS Secret, users must specify the namespace and the name of the Secret using the `exportTo` field of the Certificate resource, as shown below.
